@@ -1,0 +1,1166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Faculty Activity Tracker — Dr. C.V. Krishnaveni</title>
+
+<!-- Firebase SDK (Realtime Database) -->
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+
+<!-- Chart.js -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+
+<!-- Fonts -->
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+<style>
+:root {
+  --navy:#0F2557; --blue:#1D4ED8; --indigo:#4338CA; --purple:#7C3AED;
+  --teal:#0D9488; --green:#15803D; --orange:#EA580C; --gold:#B45309;
+  --maroon:#7F1D1D; --pink:#DB2777; --red:#B91C1C; --cyan:#0891B2;
+  --sidebar-w:262px; --hdr-h:56px;
+  --bg:#F0F4FF; --card:#FFFFFF; --text:#1A1A2E; --muted:#64748B;
+  --border:#E2E8F0;
+  --shadow:0 2px 12px rgba(15,37,87,.10);
+  --shadow-lg:0 8px 32px rgba(15,37,87,.16);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex;flex-direction:column}
+
+/* HEADER */
+#hdr{position:fixed;top:0;left:0;right:0;z-index:100;height:var(--hdr-h);background:var(--navy);display:flex;align-items:center;gap:12px;padding:0 20px;box-shadow:0 2px 16px rgba(0,0,0,.3)}
+#hdr .logo{font-family:'DM Serif Display',serif;font-size:18px;color:#fff;white-space:nowrap}
+#hdr .logo span{color:#93C5FD}
+#hdr-name{font-size:12px;color:#93C5FD;font-weight:600;margin-left:10px}
+#hdr .sub{font-size:10px;color:#93C5FD;margin-left:auto;text-align:right;line-height:1.5}
+#menu-btn{background:none;border:none;color:#fff;cursor:pointer;font-size:22px;padding:4px;display:none}
+#sync-indicator{display:flex;align-items:center;gap:5px;font-size:11px;color:#93C5FD;white-space:nowrap;padding:4px 10px;border-radius:20px;background:rgba(255,255,255,.08)}
+#sync-dot{width:7px;height:7px;border-radius:50%;background:#22C55E}
+#sync-dot.syncing{background:#F59E0B;animation:pulse .8s infinite}
+#sync-dot.error{background:#EF4444}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+
+/* SIDEBAR */
+#sidebar{width:var(--sidebar-w);background:var(--navy);position:fixed;top:var(--hdr-h);bottom:0;left:0;overflow-y:auto;z-index:90;transition:transform .3s;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.15) transparent}
+#sidebar::-webkit-scrollbar{width:4px}
+#sidebar::-webkit-scrollbar-thumb{background:rgba(255,255,255,.15);border-radius:4px}
+.nav-section{padding:8px 0}
+.nav-label{font-size:9px;font-weight:700;letter-spacing:.12em;color:#60A5FA;text-transform:uppercase;padding:6px 18px 3px}
+.nav-item{display:flex;align-items:center;gap:9px;padding:7px 18px;cursor:pointer;color:#CBD5E1;font-size:12px;font-weight:500;transition:all .15s;border-left:3px solid transparent;white-space:nowrap;overflow:hidden}
+.nav-item:hover{background:rgba(255,255,255,.07);color:#fff}
+.nav-item.active{background:rgba(29,78,216,.35);color:#fff;border-left-color:#60A5FA}
+.nav-item .icon{font-size:13px;flex-shrink:0}
+.nav-badge{margin-left:auto;font-size:10px;font-family:'JetBrains Mono',monospace;background:rgba(255,255,255,.15);color:#fff;padding:1px 6px;border-radius:10px;min-width:20px;text-align:center}
+.nav-divider{height:1px;background:rgba(255,255,255,.08);margin:3px 0}
+
+/* LAYOUT */
+#layout{display:flex;margin-top:var(--hdr-h);min-height:calc(100vh - var(--hdr-h))}
+#main{margin-left:var(--sidebar-w);flex:1;padding:24px;min-height:calc(100vh - var(--hdr-h))}
+
+/* VIEWS */
+.view{display:none;animation:fadeIn .22s ease}
+.view.active{display:block}
+@keyframes fadeIn{from{opacity:0;transform:translateY(7px)}to{opacity:1;transform:none}}
+
+/* PAGE TITLE */
+.page-title{font-family:'DM Serif Display',serif;font-size:25px;color:var(--navy);margin-bottom:4px}
+.page-sub{font-size:13px;color:var(--muted);margin-bottom:18px}
+
+/* STAT CARDS */
+.stat-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(148px,1fr));gap:13px;margin-bottom:22px}
+.stat-card{background:var(--card);border-radius:14px;padding:15px 17px;box-shadow:var(--shadow);border-top:4px solid var(--blue);transition:transform .2s,box-shadow .2s}
+.stat-card:hover{transform:translateY(-2px);box-shadow:var(--shadow-lg)}
+.stat-num{font-family:'DM Serif Display',serif;font-size:32px;color:var(--navy);line-height:1}
+.stat-label{font-size:10px;color:var(--muted);margin-top:4px;font-weight:700;text-transform:uppercase;letter-spacing:.06em}
+
+/* CHARTS */
+.chart-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:22px}
+.chart-card{background:var(--card);border-radius:14px;padding:18px;box-shadow:var(--shadow)}
+.chart-card.full{grid-column:1/-1}
+.chart-title{font-size:12px;font-weight:700;color:var(--navy);margin-bottom:12px;text-transform:uppercase;letter-spacing:.05em}
+.chart-wrap{position:relative;height:210px}
+
+/* FILTER BAR */
+.filter-bar{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:18px;align-items:center}
+.filter-bar label{font-size:11px;font-weight:700;color:var(--muted)}
+.ay-chip{padding:4px 13px;border-radius:20px;border:2px solid var(--border);background:var(--card);font-size:11px;font-weight:600;cursor:pointer;transition:all .15s;color:var(--muted)}
+.ay-chip:hover{border-color:var(--blue);color:var(--blue)}
+.ay-chip.active{background:var(--navy);color:#fff;border-color:var(--navy)}
+
+/* FORMS */
+.form-card{background:var(--card);border-radius:14px;padding:22px;box-shadow:var(--shadow);margin-bottom:18px}
+.form-card-title{font-size:13px;font-weight:700;color:var(--navy);margin-bottom:14px;padding-bottom:9px;border-bottom:2px solid var(--border)}
+.form-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:12px}
+.form-group{display:flex;flex-direction:column;gap:4px}
+.form-group.full{grid-column:1/-1}
+.form-group label{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.form-group input,.form-group select,.form-group textarea{padding:8px 11px;border:2px solid var(--border);border-radius:8px;font-family:'DM Sans',sans-serif;font-size:13px;color:var(--text);background:#FAFBFF;transition:border-color .15s,box-shadow .15s;outline:none}
+.form-group input:focus,.form-group select:focus,.form-group textarea:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(29,78,216,.1);background:#fff}
+.form-group textarea{resize:vertical;min-height:58px}
+.btn{padding:9px 20px;border-radius:8px;border:none;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:700;cursor:pointer;transition:all .15s;display:inline-flex;align-items:center;gap:5px}
+.btn-primary{background:var(--navy);color:#fff}
+.btn-primary:hover{background:var(--blue);transform:translateY(-1px)}
+.btn-secondary{background:var(--border);color:var(--text)}
+.btn-secondary:hover{background:#CBD5E1}
+.btn-danger{background:#FEE2E2;color:var(--red)}
+.form-actions{display:flex;gap:9px;margin-top:14px;flex-wrap:wrap}
+
+/* TABLE */
+.table-card{background:var(--card);border-radius:14px;box-shadow:var(--shadow);overflow:hidden;margin-bottom:18px}
+.table-hdr{padding:12px 18px;color:#fff;display:flex;align-items:center;justify-content:space-between}
+.table-hdr-title{font-size:13px;font-weight:700}
+.table-count{font-family:'JetBrains Mono',monospace;font-size:11px;background:rgba(255,255,255,.18);padding:2px 9px;border-radius:10px}
+.table-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:12px}
+th{background:#F1F5FF;color:var(--navy);font-weight:700;padding:9px 13px;text-align:left;border-bottom:2px solid var(--border);white-space:nowrap;font-size:10px;letter-spacing:.04em}
+td{padding:8px 13px;border-bottom:1px solid var(--border);vertical-align:middle;max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+tr:hover td{background:#F8FAFF}
+tr:last-child td{border-bottom:none}
+.td-ay{font-family:'JetBrains Mono',monospace;font-size:10px;background:#EFF6FF;color:var(--blue);padding:2px 7px;border-radius:5px;display:inline-block}
+.del-btn{background:#FEE2E2;color:var(--red);border:none;border-radius:6px;padding:3px 9px;cursor:pointer;font-size:10px;font-weight:700;transition:background .15s}
+.del-btn:hover{background:#FECACA}
+.empty-state{text-align:center;padding:36px 18px;color:var(--muted);font-size:13px}
+.empty-icon{font-size:34px;margin-bottom:7px}
+
+/* PROFILE */
+.profile-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.profile-section{background:var(--card);border-radius:14px;padding:18px;box-shadow:var(--shadow)}
+.profile-section.full{grid-column:1/-1}
+.profile-section h3{font-size:11px;font-weight:700;color:var(--navy);text-transform:uppercase;letter-spacing:.08em;margin-bottom:12px;padding-bottom:7px;border-bottom:2px solid var(--border)}
+
+/* SUMMARY TABLE */
+.summary-table{width:100%;border-collapse:collapse;font-size:11px}
+.summary-table th{background:var(--navy);color:#fff;padding:7px 11px;font-size:9px;letter-spacing:.06em}
+.summary-table td{padding:6px 11px;border-bottom:1px solid var(--border)}
+.summary-table .sec-row td{background:#EFF6FF;font-weight:700;color:var(--navy);font-size:10px}
+.summary-table .total-row td{background:var(--navy);color:#fff;font-weight:700;font-family:'JetBrains Mono',monospace}
+.num-cell{text-align:center;font-family:'JetBrains Mono',monospace;font-weight:600}
+.num-cell.has-data{color:var(--blue);font-weight:700}
+
+/* TOAST */
+#toast{position:fixed;bottom:22px;right:22px;z-index:999;background:var(--navy);color:#fff;padding:11px 18px;border-radius:10px;font-size:13px;font-weight:600;box-shadow:var(--shadow-lg);transform:translateY(80px);opacity:0;transition:all .3s;pointer-events:none}
+#toast.show{transform:none;opacity:1}
+
+/* LOADING OVERLAY */
+#loading{position:fixed;inset:0;background:rgba(15,37,87,.85);z-index:999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px}
+#loading p{color:#fff;font-size:14px;font-weight:600}
+.spinner{width:40px;height:40px;border:4px solid rgba(255,255,255,.2);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* EXPORT BAR */
+.export-bar{display:flex;gap:9px;flex-wrap:wrap;margin-bottom:18px}
+
+/* FIREBASE NOTICE */
+.firebase-notice{background:linear-gradient(135deg,#065F46,#0D9488);color:#fff;border-radius:12px;padding:14px 18px;margin-bottom:18px;font-size:12px;display:flex;align-items:center;gap:11px}
+.firebase-notice .icon{font-size:24px;flex-shrink:0}
+
+@media(max-width:768px){
+  #menu-btn{display:block}
+  #sidebar{transform:translateX(-100%)}
+  #sidebar.open{transform:none}
+  #main{margin-left:0;padding:14px}
+  .chart-grid{grid-template-columns:1fr}
+  .profile-grid{grid-template-columns:1fr}
+  .stat-grid{grid-template-columns:repeat(2,1fr)}
+  #hdr .sub{display:none}
+}
+</style>
+</head>
+<body>
+
+<!-- LOADING OVERLAY -->
+<div id="loading">
+  <div class="spinner"></div>
+  <p>Connecting to Firebase...</p>
+</div>
+
+<!-- HEADER -->
+<header id="hdr">
+  <button id="menu-btn" onclick="toggleSidebar()">☰</button>
+  <div class="logo">Faculty<span>Tracker</span></div>
+  <div id="hdr-name"></div>
+  <div id="sync-indicator">
+    <div id="sync-dot"></div>
+    <span id="sync-text">Connecting...</span>
+  </div>
+  <div class="sub">Dr. C.V. Krishnaveni · SKR & SKR GCW(A), Kadapa<br>© 2025 CC BY 4.0</div>
+</header>
+
+<!-- SIDEBAR -->
+<nav id="sidebar">
+  <div class="nav-section">
+    <div class="nav-label">Overview</div>
+    <div class="nav-item active" onclick="showView('dashboard')"><span class="icon">📊</span>Dashboard</div>
+    <div class="nav-item" onclick="showView('summary')"><span class="icon">📋</span>Summary Table</div>
+    <div class="nav-item" onclick="showView('profile')"><span class="icon">👤</span>My Profile</div>
+  </div>
+  <div class="nav-divider"></div>
+  <div class="nav-section">
+    <div class="nav-label">Academic Proficiency</div>
+    <div class="nav-item" onclick="showView('ap01')"><span class="icon">🎓</span>AP01 FDPs Attended<span class="nav-badge" id="badge-ap01">0</span></div>
+    <div class="nav-item" onclick="showView('ap02')"><span class="icon">🔧</span>AP02 Workshops<span class="nav-badge" id="badge-ap02">0</span></div>
+    <div class="nav-item" onclick="showView('ap03')"><span class="icon">💡</span>AP03 Trainings<span class="nav-badge" id="badge-ap03">0</span></div>
+    <div class="nav-item" onclick="showView('ap04')"><span class="icon">🎤</span>AP04 Resource Person<span class="nav-badge" id="badge-ap04">0</span></div>
+    <div class="nav-item" onclick="showView('ap05')"><span class="icon">📅</span>AP05 FDPs Organized<span class="nav-badge" id="badge-ap05">0</span></div>
+    <div class="nav-item" onclick="showView('ap06')"><span class="icon">🏛️</span>AP06 Workshops Org.<span class="nav-badge" id="badge-ap06">0</span></div>
+    <div class="nav-item" onclick="showView('ap07')"><span class="icon">🏋️</span>AP07 Trainings Org.<span class="nav-badge" id="badge-ap07">0</span></div>
+    <div class="nav-item" onclick="showView('ap08')"><span class="icon">🌐</span>AP08 Webinars Org.<span class="nav-badge" id="badge-ap08">0</span></div>
+    <div class="nav-item" onclick="showView('ap09')"><span class="icon">📝</span>AP09 Papers-Seminars<span class="nav-badge" id="badge-ap09">0</span></div>
+    <div class="nav-item" onclick="showView('ap10')"><span class="icon">🏆</span>AP10 Conf. Papers<span class="nav-badge" id="badge-ap10">0</span></div>
+    <div class="nav-item" onclick="showView('ap11')"><span class="icon">📰</span>AP11 Journal Papers<span class="nav-badge" id="badge-ap11">0</span></div>
+    <div class="nav-item" onclick="showView('ap12')"><span class="icon">📖</span>AP12 Book Chapters<span class="nav-badge" id="badge-ap12">0</span></div>
+    <div class="nav-item" onclick="showView('ap13')"><span class="icon">📚</span>AP13 Books Published<span class="nav-badge" id="badge-ap13">0</span></div>
+    <div class="nav-item" onclick="showView('ap14')"><span class="icon">💻</span>AP14 LMS eContent<span class="nav-badge" id="badge-ap14">0</span></div>
+    <div class="nav-item" onclick="showView('ap15')"><span class="icon">🖥️</span>AP15 LMS Expert<span class="nav-badge" id="badge-ap15">0</span></div>
+    <div class="nav-item" onclick="showView('ap16')"><span class="icon">🔍</span>AP16 Academic Audit<span class="nav-badge" id="badge-ap16">0</span></div>
+    <div class="nav-item" onclick="showView('ap17')"><span class="icon">👨‍🏫</span>AP17 Guest Lec Org.<span class="nav-badge" id="badge-ap17">0</span></div>
+    <div class="nav-item" onclick="showView('ap18')"><span class="icon">🤝</span>AP18 Meetings<span class="nav-badge" id="badge-ap18">0</span></div>
+    <div class="nav-item" onclick="showView('ap19')"><span class="icon">📜</span>AP19 Cert. Courses<span class="nav-badge" id="badge-ap19">0</span></div>
+    <div class="nav-item" onclick="showView('ap20')"><span class="icon">👥</span>AP20 Committees<span class="nav-badge" id="badge-ap20">0</span></div>
+    <div class="nav-item" onclick="showView('ap21')"><span class="icon">🎙️</span>AP21 Guest Lec Given<span class="nav-badge" id="badge-ap21">0</span></div>
+    <div class="nav-item" onclick="showView('ap22')"><span class="icon">📋</span>AP22 Exam Duties<span class="nav-badge" id="badge-ap22">0</span></div>
+    <div class="nav-item" onclick="showView('ap23')"><span class="icon">🏅</span>AP23 MOOCs<span class="nav-badge" id="badge-ap23">0</span></div>
+  </div>
+  <div class="nav-divider"></div>
+  <div class="nav-section">
+    <div class="nav-label">Faculty Course File</div>
+    <div class="nav-item" onclick="showView('fc01')"><span class="icon">📃</span>FC01 Roll List<span class="nav-badge" id="badge-fc01">0</span></div>
+    <div class="nav-item" onclick="showView('fc02')"><span class="icon">🗓️</span>FC02 Time Table<span class="nav-badge" id="badge-fc02">0</span></div>
+    <div class="nav-item" onclick="showView('fc03')"><span class="icon">📑</span>FC03 Lesson Plan<span class="nav-badge" id="badge-fc03">0</span></div>
+    <div class="nav-item" onclick="showView('fc04')"><span class="icon">📆</span>FC04 Annual Plan<span class="nav-badge" id="badge-fc04">0</span></div>
+    <div class="nav-item" onclick="showView('fc05')"><span class="icon">📓</span>FC05 Teaching Diary<span class="nav-badge" id="badge-fc05">0</span></div>
+    <div class="nav-item" onclick="showView('fc06')"><span class="icon">📒</span>FC06 Teaching Notes<span class="nav-badge" id="badge-fc06">0</span></div>
+    <div class="nav-item" onclick="showView('fc07')"><span class="icon">🎓</span>FC07 Student Seminars<span class="nav-badge" id="badge-fc07">0</span></div>
+    <div class="nav-item" onclick="showView('fc08')"><span class="icon">❓</span>FC08 Quiz<span class="nav-badge" id="badge-fc08">0</span></div>
+    <div class="nav-item" onclick="showView('fc09')"><span class="icon">💬</span>FC09 Group Discussions<span class="nav-badge" id="badge-fc09">0</span></div>
+    <div class="nav-item" onclick="showView('fc10')"><span class="icon">✏️</span>FC10 Assignment<span class="nav-badge" id="badge-fc10">0</span></div>
+    <div class="nav-item" onclick="showView('fc11')"><span class="icon">🔬</span>FC11 Study Projects<span class="nav-badge" id="badge-fc11">0</span></div>
+    <div class="nav-item" onclick="showView('fc12')"><span class="icon">➕</span>FC12 Additional Inputs<span class="nav-badge" id="badge-fc12">0</span></div>
+    <div class="nav-item" onclick="showView('fc13')"><span class="icon">📊</span>FC13 CIA<span class="nav-badge" id="badge-fc13">0</span></div>
+    <div class="nav-item" onclick="showView('fc14')"><span class="icon">📈</span>FC14 Result Analysis<span class="nav-badge" id="badge-fc14">0</span></div>
+    <div class="nav-item" onclick="showView('fc15')"><span class="icon">⭐</span>FC15 CSP<span class="nav-badge" id="badge-fc15">0</span></div>
+    <div class="nav-item" onclick="showView('fc16')"><span class="icon">🏢</span>FC16 Short Internship<span class="nav-badge" id="badge-fc16">0</span></div>
+    <div class="nav-item" onclick="showView('fc17')"><span class="icon">🏭</span>FC17 Long Internship<span class="nav-badge" id="badge-fc17">0</span></div>
+    <div class="nav-item" onclick="showView('fc18')"><span class="icon">🧑‍🤝‍🧑</span>FC18 Mentor-Mentee<span class="nav-badge" id="badge-fc18">0</span></div>
+    <div class="nav-item" onclick="showView('fc19')"><span class="icon">📝</span>FC19 Question Papers<span class="nav-badge" id="badge-fc19">0</span></div>
+    <div class="nav-item" onclick="showView('fc20')"><span class="icon">🎯</span>FC20 Pedagogies<span class="nav-badge" id="badge-fc20">0</span></div>
+  </div>
+  <div class="nav-divider"></div>
+  <div class="nav-section">
+    <div class="nav-label">Custom</div>
+    <div class="nav-item" onclick="showView('custom')"><span class="icon">✨</span>Custom Activities<span class="nav-badge" id="badge-custom">0</span></div>
+  </div>
+  <div style="padding:13px 17px;font-size:10px;color:#475569;line-height:1.7;margin-top:8px">
+    Designed & Developed by<br>
+    <strong style="color:#93C5FD">Dr. C.V. Krishnaveni</strong><br>
+    HOD-CS & IQAC Coordinator<br>
+    SKR & SKR GCW(A), Kadapa<br>
+    <a href="https://cvkrishnaveni.blogspot.com" style="color:#60A5FA" target="_blank">cvkrishnaveni.blogspot.com</a><br>
+    © 2025 CC BY 4.0
+  </div>
+</nav>
+
+<!-- MAIN -->
+<main id="main">
+
+<!-- DASHBOARD -->
+<div id="view-dashboard" class="view active">
+  <div class="firebase-notice">
+    <div class="icon">☁️</div>
+    <div><strong>Firebase Realtime Sync Active</strong> — Data entered from any device reflects here instantly. No login required.</div>
+  </div>
+  <div class="page-title">📊 Live Dashboard</div>
+  <div class="page-sub" id="dash-profile-line">Loading...</div>
+  <div class="filter-bar">
+    <label>Filter by Year:</label>
+    <div id="ay-chips"></div>
+  </div>
+  <div class="stat-grid" id="stat-grid"></div>
+  <div class="chart-grid">
+    <div class="chart-card full"><div class="chart-title">📅 Activities by Academic Year</div><div class="chart-wrap"><canvas id="chart-ay"></canvas></div></div>
+    <div class="chart-card"><div class="chart-title">🔵 AP vs FC vs Custom</div><div class="chart-wrap"><canvas id="chart-donut"></canvas></div></div>
+    <div class="chart-card"><div class="chart-title">📊 Top Activity Categories</div><div class="chart-wrap"><canvas id="chart-top"></canvas></div></div>
+  </div>
+  <div class="export-bar">
+    <button class="btn btn-primary" onclick="exportCSV()">⬇️ Export All as CSV</button>
+  </div>
+</div>
+
+<!-- SUMMARY -->
+<div id="view-summary" class="view">
+  <div class="page-title">📋 Summary Table</div>
+  <div class="page-sub">Auto-counted totals by Academic Year — updates live from Firebase</div>
+  <div class="table-card"><div class="table-wrap"><div id="summary-content"></div></div></div>
+</div>
+
+<!-- PROFILE -->
+<div id="view-profile" class="view">
+  <div class="page-title">👤 My Profile</div>
+  <div class="page-sub">Saved to Firebase — visible from any device</div>
+  <div class="profile-grid" id="profile-grid"></div>
+</div>
+
+<!-- ALL SHEET VIEWS (generated by JS) -->
+<div id="view-ap01" class="view"></div><div id="view-ap02" class="view"></div>
+<div id="view-ap03" class="view"></div><div id="view-ap04" class="view"></div>
+<div id="view-ap05" class="view"></div><div id="view-ap06" class="view"></div>
+<div id="view-ap07" class="view"></div><div id="view-ap08" class="view"></div>
+<div id="view-ap09" class="view"></div><div id="view-ap10" class="view"></div>
+<div id="view-ap11" class="view"></div><div id="view-ap12" class="view"></div>
+<div id="view-ap13" class="view"></div><div id="view-ap14" class="view"></div>
+<div id="view-ap15" class="view"></div><div id="view-ap16" class="view"></div>
+<div id="view-ap17" class="view"></div><div id="view-ap18" class="view"></div>
+<div id="view-ap19" class="view"></div><div id="view-ap20" class="view"></div>
+<div id="view-ap21" class="view"></div><div id="view-ap22" class="view"></div>
+<div id="view-ap23" class="view"></div>
+<div id="view-fc01" class="view"></div><div id="view-fc02" class="view"></div>
+<div id="view-fc03" class="view"></div><div id="view-fc04" class="view"></div>
+<div id="view-fc05" class="view"></div><div id="view-fc06" class="view"></div>
+<div id="view-fc07" class="view"></div><div id="view-fc08" class="view"></div>
+<div id="view-fc09" class="view"></div><div id="view-fc10" class="view"></div>
+<div id="view-fc11" class="view"></div><div id="view-fc12" class="view"></div>
+<div id="view-fc13" class="view"></div><div id="view-fc14" class="view"></div>
+<div id="view-fc15" class="view"></div><div id="view-fc16" class="view"></div>
+<div id="view-fc17" class="view"></div><div id="view-fc18" class="view"></div>
+<div id="view-fc19" class="view"></div><div id="view-fc20" class="view"></div>
+<div id="view-custom" class="view"></div>
+
+</main>
+
+<div id="toast"></div>
+
+<script>
+// ══════════════════════════════════════════════════
+// FIREBASE INIT
+// ══════════════════════════════════════════════════
+const firebaseConfig = {
+  apiKey: "AIzaSyCdlvqiZ60z3BZ8osjlmN-J3shMWl7Z6cM",
+  authDomain: "aai-drcvk-interactive-webapp.firebaseapp.com",
+  databaseURL: "https://aai-drcvk-interactive-webapp-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "aai-drcvk-interactive-webapp",
+  storageBucket: "aai-drcvk-interactive-webapp.firebasestorage.app",
+  messagingSenderId: "1008860491414",
+  appId: "1:1008860491414:web:fbfa1dbede3b7f6501dcb7",
+  measurementId: "G-P3C9WDSZT0"
+};
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+const ROOT = 'faculty_tracker';
+
+// ══════════════════════════════════════════════════
+// CONSTANTS
+// ══════════════════════════════════════════════════
+const MODES   = ["Online","Offline","Hybrid"];
+const LEVELS  = ["Department","Institutional","State","National","International"];
+const CERTS   = ["Yes","No","Applied","Not Applicable"];
+const STATUS  = ["Completed","Ongoing","Planned"];
+const MONTHS  = ["June","July","August","September","October","November","December","January","February","March","April","May"];
+const ROLES_P = ["Author","Co-Author","Corresponding Author","Presenter","Participant","Organizer","Invited Speaker"];
+const CHART_COLORS = ['#1D4ED8','#7C3AED','#0D9488','#DB2777','#EA580C','#15803D','#B45309','#0891B2','#B91C1C','#4338CA','#7F1D1D','#0F2557','#6D28D9','#065F46','#92400E'];
+
+// ── AY: free-text (no dropdown) ──────────────────
+// User types e.g. "2016-17", "2025-26" themselves
+
+// ══════════════════════════════════════════════════
+// SHEET DEFINITIONS  (ay field → plain text input)
+// ══════════════════════════════════════════════════
+const SHEETS = {
+  ap01:{label:"AP01 — FDPs Attended",color:"#0F2557",
+    fields:[
+      {id:'ay',label:'Academic Year (e.g. 2025-26)',type:'text',required:true,placeholder:'e.g. 2025-26'},
+      {id:'title',label:'Title of FDP',type:'text',required:true,full:true},
+      {id:'organizer',label:'Organizer / Institution',type:'text',required:true,full:true},
+      {id:'start',label:'Start Date',type:'date',required:true},
+      {id:'end',label:'End Date',type:'date'},
+      {id:'duration',label:'Duration',type:'text'},
+      {id:'mode',label:'Mode',type:'select',opts:MODES},
+      {id:'venue',label:'Venue / Platform',type:'text'},
+      {id:'level',label:'Level',type:'select',opts:LEVELS},
+      {id:'cert',label:'Certificate?',type:'select',opts:CERTS},
+      {id:'certno',label:'Certificate No.',type:'text'},
+      {id:'url',label:'Remarks / URL',type:'text'},
+    ],cols:['ay','title','organizer','start','mode','level','cert']},
+
+  ap02:{label:"AP02 — Workshops Attended",color:"#0891B2",
+    fields:[
+      {id:'ay',label:'Academic Year',type:'text',required:true,placeholder:'e.g. 2024-25'},
+      {id:'title',label:'Workshop Title',type:'text',required:true,full:true},
+      {id:'organizer',label:'Organizer',type:'text',required:true},
+      {id:'date',label:'Date',type:'date',required:true},
+      {id:'duration',label:'Duration',type:'text'},
+      {id:'mode',label:'Mode',type:'select',opts:MODES},
+      {id:'venue',label:'Venue / Platform',type:'text'},
+      {id:'level',label:'Level',type:'select',opts:LEVELS},
+      {id:'cert',label:'Certificate?',type:'select',opts:CERTS},
+      {id:'url',label:'Remarks / URL',type:'text'},
+    ],cols:['ay','title','organizer','date','mode','level','cert']},
+
+  ap03:{label:"AP03 — Trainings Attended",color:"#0D9488",
+    fields:[
+      {id:'ay',label:'Academic Year',type:'text',required:true,placeholder:'e.g. 2023-24'},
+      {id:'title',label:'Training Title',type:'text',required:true,full:true},
+      {id:'organizer',label:'Organizer',type:'text',required:true},
+      {id:'date',label:'Date',type:'date',required:true},
+      {id:'duration',label:'Duration',type:'text'},
+      {id:'mode',label:'Mode',type:'select',opts:MODES},
+      {id:'venue',label:'Venue / Platform',type:'text'},
+      {id:'level',label:'Level',type:'select',opts:LEVELS},
+      {id:'cert',label:'Certificate?',type:'select',opts:CERTS},
+      {id:'url',label:'Remarks / URL',type:'text'},
+    ],cols:['ay','title','organizer','date','mode','level','cert']},
+
+  ap04:{label:"AP04 — Resource Person",color:"#7C3AED",
+    fields:[
+      {id:'ay',label:'Academic Year',type:'text',required:true,placeholder:'e.g. 2025-26'},
+      {id:'title',label:'Event Title',type:'text',required:true,full:true},
+      {id:'invitedby',label:'Invited By',type:'text',required:true},
+      {id:'date',label:'Date',type:'date',required:true},
+      {id:'mode',label:'Mode',type:'select',opts:MODES},
+      {id:'venue',label:'Venue / Platform',type:'text'},
+      {id:'level',label:'Level',type:'select',opts:LEVELS},
+      {id:'topic',label:'Topic Delivered',type:'text',full:true},
+      {id:'participants',label:'No. of Participants',type:'number'},
+      {id:'invitation',label:'Invitation Letter?',type:'select',opts:CERTS},
+      {id:'url',label:'Remarks / URL',type:'text'},
+    ],cols:['ay','title','invitedby','date','level','participants']},
+
+  ap05:{label:"AP05 — FDPs Organized",color:"#EA580C",
+    fields:[
+      {id:'ay',label:'Academic Year',type:'text',required:true,placeholder:'e.g. 2025-26'},
+      {id:'title',label:'FDP Title',type:'text',required:true,full:true},
+      {id:'cobody',label:'Co-Organizing Body',type:'text'},
+      {id:'start',label:'Start Date',type:'date',required:true},
+      {id:'end',label:'End Date',type:'date'},
+      {id:'duration',label:'Duration',type:'text'},
+      {id:'mode',label:'Mode',type:'select',opts:MODES},
+      {id:'venue',label:'Venue',type:'text'},
+      {id:'level',label:'Level',type:'select',opts:LEVELS},
+      {id:'participants',label:'No. of Participants',type:'number'},
+      {id:'role',label:'Your Role',type:'select',opts:['Organizer','Coordinator','Convenor','Co-Convenor']},
+      {id:'url',label:'Remarks / URL',type:'text'},
+    ],cols:['ay','title','start','mode','level','participants','role']},
+
+  ap06:{label:"AP06 — Workshops Organized",color:"#15803D",
+    fields:[
+      {id:'ay',label:'Academic Year',type:'text',required:true,placeholder:'e.g. 2025-26'},
+      {id:'title',label:'Workshop Title',type:'text',required:true,full:true},
+      {id:'cobody',label:'Co-Organizing Body',type:'text'},
+      {id:'date',label:'Date',type:'date',required:true},
+      {id:'mode',label:'Mode',type:'select',opts:MODES},
+      {id:'venue',label:'Venue',type:'text'},
+      {id:'level',label:'Level',type:'select',opts:LEVELS},
+      {id:'participants',label:'No. of Participants',type:'number'},
+      {id:'role',label:'Your Role',type:'select',opts:['Organizer','Coordinator','Convenor']},
+      {id:'url',label:'Remarks / URL',type:'text'},
+    ],cols:['ay','title','date','level','participants','role']},
+
+  ap07:{label:"AP07 — Trainings Organized",color:"#B45309",
+    fields:[
+      {id:'ay',label:'Academic Year',type:'text',required:true,placeholder:'e.g. 2024-25'},
+      {id:'title',label:'Training Title',type:'text',required:true,full:true},
+      {id:'target',label:'Target Group',type:'text'},
+      {id:'date',label:'Date',type:'date',required:true},
+      {id:'mode',label:'Mode',type:'select',opts:MODES},
+      {id:'level',label:'Level',type:'select',opts:LEVELS},
+      {id:'participants',label:'No. of Participants',type:'number'},
+      {id:'url',label:'Remarks / URL',type:'text'},
+    ],cols:['ay','title','target','date','level','participants']},
+
+  ap08:{label:"AP08 — Webinars / Seminars Organized",color:"#DB2777",
+    fields:[
+      {id:'ay',label:'Academic Year',type:'text',required:true,placeholder:'e.g. 2025-26'},
+      {id:'title',label:'Event Title',type:'text',required:true,full:true},
+      {id:'cobody',label:'Co-Organizing Body',type:'text'},
+      {id:'date',label:'Date',type:'date',required:true},
+      {id:'mode',label:'Mode',type:'select',opts:MODES},
+      {id:'venue',label:'Platform / Venue',type:'text'},
+      {id:'level',label:'Level',type:'select',opts:LEVELS},
+      {id:'participants',label:'No. of Participants',type:'number'},
+      {id:'speaker',label:'Chief Guest / Speaker',type:'text'},
+      {id:'role',label:'Your Role',type:'select',opts:['Organizer','Coordinator','IQAC Coordinator','Convenor']},
+      {id:'url',label:'Remarks / URL',type:'text'},
+    ],cols:['ay','title','date','level','participants','role']},
+
+  ap09:{label:"AP09 — Papers in Seminars/Webinars",color:"#B91C1C",
+    fields:[
+      {id:'ay',label:'Academic Year',type:'text',required:true,placeholder:'e.g. 2024-25'},
+      {id:'title',label:'Paper Title',type:'text',required:true,full:true},
+      {id:'event',label:'Event Name',type:'text',required:true,full:true},
+      {id:'organizer',label:'Organizer',type:'text'},
+      {id:'date',label:'Date',type:'date',required:true},
+      {id:'mode',label:'Mode',type:'select',opts:MODES},
+      {id:'level',label:'Level',type:'select',opts:LEVELS},
+      {id:'role',label:'Your Role',type:'select',opts:['Presenter','Co-Presenter']},
+      {id:'cert',label:'Certificate?',type:'select',opts:CERTS},
+      {id:'url',label:'Remarks / URL',type:'text'},
+    ],cols:['ay','title','event','date','level','role','cert']},
+
+  ap10:{label:"AP10 — Conference Papers",color:"#0F2557",
+    fields:[
+      {id:'ay',label:'Academic Year',type:'text',required:true,placeholder:'e.g. 2024-25'},
+      {id:'title',label:'Paper Title',type:'text',required:true,full:true},
+      {id:'conference',label:'Conference Name',type:'text',required:true,full:true},
+      {id:'date',label:'Date',type:'date',required:true},
+      {id:'level',label:'Level',type:'select',opts:LEVELS},
+      {id:'mode',label:'Mode',type:'select',opts:MODES},
+      {id:'indexed',label:'Indexed In',type:'select',opts:['Scopus','Web of Science','UGC-CARE','Others']},
+      {id:'isbn',label:'ISBN / ISSN',type:'text'},
+      {id:'published',label:'Published?',type:'select',opts:CERTS},
+      {id:'url',label:'Remarks / URL',type:'text'},
+    ],cols:['ay','title','conference','date','level','indexed','published']},
+
+  ap11:{label:"AP11 — Journal Papers",color:"#7C3AED",
+    fields:[
+      {id:'ay',label:'Academic Year',type:'text',required:true,placeholder:'e.g. 2024-25'},
+      {id:'title',label:'Paper Title',type:'text',required:true,full:true},
+      {id:'journal',label:'Journal Name',type:'text',required:true,full:true},
+      {id:'indexing',label:'Indexing',type:'select',opts:['Scopus','Web of Science','UGC-CARE','ISSN','Others']},
+      {id:'issn',label:'ISSN',type:'text'},
+      {id:'vol',label:'Vol, Issue, Pages',type:'text'},
+      {id:'doi',label:'DOI',type:'text'},
+      {id:'pubdate',label:'Publication Date',type:'date',required:true},
+      {id:'role',label:'Your Role',type:'select',opts:['Author','Co-Author','Corresponding Author']},
+      {id:'coauthors',label:'Co-Authors',type:'text'},
+      {id:'url',label:'Remarks / URL',type:'text'},
+    ],cols:['ay','title','journal','pubdate','indexing','role']},
+
+  ap12:{label:"AP12 — Book Chapters",color:"#0D9488",
+    fields:[
+      {id:'ay',label:'Academic Year',type:'text',required:true,placeholder:'e.g. 2023-24'},
+      {id:'title',label:'Chapter Title',type:'text',required:true,full:true},
+      {id:'book',label:'Book Title',type:'text',required:true,full:true},
+      {id:'publisher',label:'Publisher',type:'text',required:true},
+      {id:'isbn',label:'ISBN',type:'text'},
+      {id:'doi',label:'DOI',type:'text'},
+      {id:'pubdate',label:'Publication Date',type:'date',required:true},
+      {id:'role',label:'Your Role',type:'select',opts:['Author','Co-Author']},
+      {id:'coauthors',label:'Co-Authors',type:'text'},
+      {id:'url',label:'Remarks / URL',type:'text'},
+    ],cols:['ay','title','book','publisher','pubdate','role']},
+
+  ap13:{label:"AP13 — Books Published",color:"#EA580C",
+    fields:[
+      {id:'ay',label:'Academic Year',type:'text',required:true,placeholder:'e.g. 2025-26'},
+      {id:'title',label:'Book Title',type:'text',required:true,full:true},
+      {id:'publisher',label:'Publisher',type:'text',required:true},
+      {id:'isbn',label:'ISBN',type:'text'},
+      {id:'doi',label:'DOI / URL',type:'text'},
+      {id:'pubdate',label:'Publication Date',type:'date',required:true},
+      {id:'edition',label:'Edition',type:'text'},
+      {id:'role',label:'Your Role',type:'select',opts:['Single Author','Co-Author','Editor']},
+      {id:'subject',label:'Subject Area',type:'text'},
+      {id:'url',label:'Remarks / URL',type:'text'},
+    ],cols:['ay','title','publisher','isbn','pubdate','role']},
+
+  ap14:{label:"AP14 — LMS eContent",color:"#15803D",
+    fields:[
+      {id:'ay',label:'Academic Year',type:'text',required:true,placeholder:'e.g. 2025-26'},
+      {id:'title',label:'Content Title',type:'text',required:true,full:true},
+      {id:'subject',label:'Subject / Course',type:'text',required:true},
+      {id:'type',label:'Content Type',type:'select',opts:['Chapter','Lab Manual','Video','MOOC','Course','E-Book','Study Material','Quiz']},
+      {id:'platform',label:'Platform / LMS',type:'select',opts:['Zenodo','SWAYAM','Moodle','Google Classroom','YouTube','Others']},
+      {id:'url',label:'URL / DOI',type:'text',full:true},
+      {id:'date',label:'Date Created',type:'date',required:true},
+      {id:'students',label:'Target Students',type:'text'},
+      {id:'remarks',label:'Remarks',type:'text'},
+    ],cols:['ay','title','subject','type','platform','date']},
+
+  ap15:{label:"AP15 — LMS Subject Expert",color:"#0891B2",
+    fields:[
+      {id:'ay',label:'Academic Year',type:'text',required:true,placeholder:'e.g. 2024-25'},
+      {id:'title',label:'Subject / Module Title',type:'text',required:true,full:true},
+      {id:'platform',label:'Platform',type:'select',opts:['SWAYAM','Moodle','Google Classroom','YouTube','Others']},
+      {id:'assignedby',label:'Assigned By',type:'text'},
+      {id:'date',label:'Date of Assignment',type:'date',required:true},
+      {id:'students',label:'No. of Students',type:'number'},
+      {id:'status',label:'Status',type:'select',opts:STATUS},
+      {id:'url',label:'Remarks / URL',type:'text'},
+    ],cols:['ay','title','platform','date','students','status']},
+
+  ap16:{label:"AP16 — Academic Audit",color:"#0F2557",
+    fields:[
+      {id:'ay',label:'Academic Year',type:'text',required:true,placeholder:'e.g. 2024-25'},
+      {id:'type',label:'Audit Type',type:'text',required:true},
+      {id:'institution',label:'Institution Audited',type:'text',required:true,full:true},
+      {id:'date',label:'Date of Audit',type:'date',required:true},
+      {id:'role',label:'Your Role',type:'select',opts:['Audit Adviser','IQAC Coordinator','Academic Advisor']},
+      {id:'report',label:'Report Prepared?',type:'select',opts:CERTS},
+      {id:'url',label:'Remarks / URL',type:'text'},
+    ],cols:['ay','type','institution','date','role','report']},
+
+  ap17:{label:"AP17 — Guest Lectures Organized",color:"#DB2777",
+    fields:[
+      {id:'ay',label:'Academic Year',type:'text',required:true,placeholder:'e.g. 2025-26'},
+      {id:'topic',label:'Topic / Title',type:'text',required:true,full:true},
+      {id:'speaker',label:'Speaker Name',type:'text',required:true},
+      {id:'speakerorg',label:'Speaker Institution',type:'text'},
+      {id:'date',label:'Date',type:'date',required:true},
+      {id:'mode',label:'Mode',type:'select',opts:MODES},
+      {id:'participants',label:'No. of Participants',type:'number'},
+      {id:'url',label:'Remarks / URL',type:'text'},
+    ],cols:['ay','topic','speaker','date','mode','participants']},
+
+  ap18:{label:"AP18 — Meetings Attended",color:"#B45309",
+    fields:[
+      {id:'ay',label:'Academic Year',type:'text',required:true,placeholder:'e.g. 2025-26'},
+      {id:'title',label:'Meeting Title / Purpose',type:'text',required:true,full:true},
+      {id:'organizer',label:'Organized By',type:'text',required:true},
+      {id:'date',label:'Date',type:'date',required:true},
+      {id:'mode',label:'Mode',type:'select',opts:MODES},
+      {id:'role',label:'Your Role',type:'select',opts:['Member','Chair','Secretary','IQAC Coordinator','HOD']},
+      {id:'url',label:'Remarks / URL',type:'text'},
+    ],cols:['ay','title','organizer','date','mode','role']},
+
+  ap19:{label:"AP19 — Certificate Courses Organized",color:"#15803D",
+    fields:[
+      {id:'ay',label:'Academic Year',type:'text',required:true,placeholder:'e.g. 2025-26'},
+      {id:'title',label:'Course Title',type:'text',required:true,full:true},
+      {id:'duration',label:'Duration',type:'text',required:true},
+      {id:'start',label:'Start Date',type:'date',required:true},
+      {id:'end',label:'End Date',type:'date'},
+      {id:'mode',label:'Mode',type:'select',opts:MODES},
+      {id:'level',label:'Level',type:'select',opts:LEVELS},
+      {id:'enrolled',label:'Students Enrolled',type:'number'},
+      {id:'role',label:'Your Role',type:'select',opts:['Organizer','Coordinator','Instructor']},
+      {id:'url',label:'Remarks / URL',type:'text'},
+    ],cols:['ay','title','duration','start','level','enrolled','role']},
+
+  ap20:{label:"AP20 — Committees",color:"#0D9488",
+    fields:[
+      {id:'ay',label:'Academic Year',type:'text',required:true,placeholder:'e.g. 2025-26'},
+      {id:'committee',label:'Committee Name',type:'text',required:true,full:true},
+      {id:'appointedby',label:'Appointed By',type:'text',required:true},
+      {id:'role',label:'Your Role',type:'select',opts:['Member','Chair','Convenor','Secretary','IQAC Coordinator','HOD']},
+      {id:'date',label:'Date of Appointment',type:'date',required:true},
+      {id:'level',label:'Level',type:'select',opts:LEVELS},
+      {id:'meetings',label:'Meetings Attended',type:'number'},
+      {id:'remarks',label:'Remarks',type:'text'},
+    ],cols:['ay','committee','appointedby','role','level','meetings']},
+
+  ap21:{label:"AP21 — Guest Lectures Given",color:"#7C3AED",
+    fields:[
+      {id:'ay',label:'Academic Year',type:'text',required:true,placeholder:'e.g. 2024-25'},
+      {id:'topic',label:'Topic / Title',type:'text',required:true,full:true},
+      {id:'invitedby',label:'Invited By',type:'text',required:true},
+      {id:'institution',label:'Institution Name',type:'text',required:true},
+      {id:'date',label:'Date',type:'date',required:true},
+      {id:'mode',label:'Mode',type:'select',opts:MODES},
+      {id:'participants',label:'No. of Participants',type:'number'},
+      {id:'url',label:'Remarks / URL',type:'text'},
+    ],cols:['ay','topic','institution','date','mode','participants']},
+
+  ap22:{label:"AP22 — Exam Duties",color:"#B91C1C",
+    fields:[
+      {id:'ay',label:'Academic Year',type:'text',required:true,placeholder:'e.g. 2025-26'},
+      {id:'type',label:'Duty Type',type:'select',opts:['Invigilation','External Examiner','Paper Valuation','Question Paper Setter'],required:true},
+      {id:'institution',label:'Institution / Board',type:'text',required:true},
+      {id:'subject',label:'Subject / Course',type:'text'},
+      {id:'date',label:'Date',type:'date',required:true},
+      {id:'order',label:'Appointment Order?',type:'select',opts:CERTS},
+      {id:'remarks',label:'Remarks',type:'text'},
+    ],cols:['ay','type','institution','subject','date','order']},
+
+  ap23:{label:"AP23 — MOOCs",color:"#EA580C",
+    fields:[
+      {id:'ay',label:'Academic Year',type:'text',required:true,placeholder:'e.g. 2024-25'},
+      {id:'title',label:'MOOC Title',type:'text',required:true,full:true},
+      {id:'platform',label:'Platform',type:'select',opts:['SWAYAM','Coursera','edX','NPTEL','Udemy','LinkedIn Learning','Others'],required:true},
+      {id:'offeredby',label:'Offered By',type:'text'},
+      {id:'start',label:'Start Date',type:'date',required:true},
+      {id:'end',label:'End Date',type:'date'},
+      {id:'weeks',label:'Duration (Weeks)',type:'number'},
+      {id:'cert',label:'Certificate Earned?',type:'select',opts:CERTS},
+      {id:'grade',label:'Score / Grade',type:'text'},
+      {id:'certurl',label:'Certificate URL',type:'text'},
+    ],cols:['ay','title','platform','start','weeks','cert','grade']},
+
+  fc01:{label:"FC01 — Student Roll List",color:"#0F2557",fields:[{id:'ay',label:'Academic Year',type:'text',required:true,placeholder:'e.g. 2025-26'},{id:'class',label:'Class / Section',type:'text',required:true},{id:'subject',label:'Subject / Course',type:'text',required:true},{id:'semester',label:'Semester',type:'text'},{id:'total',label:'Total Enrolled',type:'number'},{id:'filelink',label:'Roll List File / Link',type:'text',full:true},{id:'remarks',label:'Remarks',type:'text'}],cols:['ay','class','subject','semester','total']},
+
+  fc02:{label:"FC02 — Time Table",color:"#0891B2",fields:[{id:'ay',label:'Academic Year',type:'text',required:true,placeholder:'e.g. 2025-26'},{id:'semester',label:'Semester',type:'text',required:true},{id:'class',label:'Class / Section',type:'text',required:true},{id:'subject',label:'Subject',type:'text',required:true},{id:'hours',label:'Hours / Week',type:'number'},{id:'days',label:'Days',type:'text'},{id:'filelink',label:'Timetable File / Link',type:'text',full:true},{id:'remarks',label:'Remarks',type:'text'}],cols:['ay','semester','class','subject','hours','days']},
+
+  fc03:{label:"FC03 — Lesson Plan",color:"#0D9488",fields:[{id:'ay',label:'Academic Year',type:'text',required:true,placeholder:'e.g. 2025-26'},{id:'semester',label:'Semester',type:'text',required:true},{id:'subject',label:'Subject / Course',type:'text',required:true},{id:'class',label:'Class',type:'text',required:true},{id:'unit',label:'Unit No.',type:'text'},{id:'unittitle',label:'Unit Title',type:'text'},{id:'hours',label:'No. of Hours',type:'number'},{id:'method',label:'Teaching Method',type:'text'},{id:'filelink',label:'Lesson Plan File / Link',type:'text',full:true},{id:'status',label:'Status',type:'select',opts:STATUS}],cols:['ay','semester','subject','class','unit','hours','status']},
+
+  fc04:{label:"FC04 — Annual Curricular Plan",color:"#7C3AED",fields:[{id:'ay',label:'Academic Year',type:'text',required:true,placeholder:'e.g. 2025-26'},{id:'subject',label:'Subject / Course',type:'text',required:true},{id:'class',label:'Class',type:'text',required:true},{id:'semester',label:'Semester',type:'text'},{id:'units',label:'No. of Units',type:'number'},{id:'hours',label:'Total Hours Planned',type:'number'},{id:'filelink',label:'ACP File / Link',type:'text',full:true},{id:'approvedby',label:'Approved By',type:'text'}],cols:['ay','subject','class','semester','units','hours']},
+
+  fc05:{label:"FC05 — Teaching Diary",color:"#DB2777",fields:[{id:'ay',label:'Academic Year',type:'text',required:true,placeholder:'e.g. 2025-26'},{id:'month',label:'Month',type:'select',opts:MONTHS,required:true},{id:'subject',label:'Subject / Course',type:'text',required:true},{id:'class',label:'Class',type:'text',required:true},{id:'classes',label:'No. of Classes Taken',type:'number'},{id:'topics',label:'Topics Covered',type:'textarea',full:true},{id:'filelink',label:'Teaching Diary File / Link',type:'text',full:true}],cols:['ay','month','subject','class','classes']},
+
+  fc06:{label:"FC06 — Teaching Notes",color:"#B45309",fields:[{id:'ay',label:'Academic Year',type:'text',required:true,placeholder:'e.g. 2025-26'},{id:'subject',label:'Subject / Course',type:'text',required:true},{id:'unit',label:'Unit No.',type:'text'},{id:'unittitle',label:'Unit Title',type:'text'},{id:'class',label:'Class',type:'text',required:true},{id:'filelink',label:'Notes File / Link',type:'text',full:true},{id:'remarks',label:'Remarks',type:'text'}],cols:['ay','subject','unit','unittitle','class']},
+
+  fc07:{label:"FC07 — Student Seminars",color:"#15803D",fields:[{id:'ay',label:'Academic Year',type:'text',required:true,placeholder:'e.g. 2025-26'},{id:'subject',label:'Subject / Course',type:'text',required:true},{id:'class',label:'Class',type:'text',required:true},{id:'topic',label:'Seminar Topic',type:'text',full:true},{id:'date',label:'Date',type:'date',required:true},{id:'students',label:'No. of Students',type:'number'},{id:'filelink',label:'Report / Link',type:'text'}],cols:['ay','subject','class','date','students']},
+
+  fc08:{label:"FC08 — Quiz",color:"#EA580C",fields:[{id:'ay',label:'Academic Year',type:'text',required:true,placeholder:'e.g. 2025-26'},{id:'subject',label:'Subject / Course',type:'text',required:true},{id:'class',label:'Class',type:'text',required:true},{id:'title',label:'Quiz Title',type:'text'},{id:'date',label:'Date',type:'date',required:true},{id:'questions',label:'No. of Questions',type:'number'},{id:'marks',label:'Max Marks',type:'number'},{id:'mode',label:'Mode',type:'select',opts:MODES},{id:'filelink',label:'Report / Link',type:'text'}],cols:['ay','subject','class','date','questions','marks']},
+
+  fc09:{label:"FC09 — Group Discussions",color:"#B91C1C",fields:[{id:'ay',label:'Academic Year',type:'text',required:true,placeholder:'e.g. 2025-26'},{id:'subject',label:'Subject / Course',type:'text',required:true},{id:'class',label:'Class',type:'text',required:true},{id:'topic',label:'Topic',type:'text',full:true},{id:'date',label:'Date',type:'date',required:true},{id:'students',label:'No. of Students',type:'number'},{id:'outcome',label:'Outcome',type:'text',full:true}],cols:['ay','subject','class','date','students']},
+
+  fc10:{label:"FC10 — Assignment",color:"#0F2557",fields:[{id:'ay',label:'Academic Year',type:'text',required:true,placeholder:'e.g. 2025-26'},{id:'subject',label:'Subject / Course',type:'text',required:true},{id:'class',label:'Class',type:'text',required:true},{id:'title',label:'Assignment Title',type:'text',full:true},{id:'given',label:'Date Given',type:'date',required:true},{id:'submission',label:'Submission Date',type:'date'},{id:'marks',label:'Max Marks',type:'number'},{id:'submitted',label:'Students Submitted',type:'number'}],cols:['ay','subject','class','given','marks','submitted']},
+
+  fc11:{label:"FC11 — Study Projects",color:"#0891B2",fields:[{id:'ay',label:'Academic Year',type:'text',required:true,placeholder:'e.g. 2025-26'},{id:'subject',label:'Subject / Course',type:'text',required:true},{id:'class',label:'Class',type:'text',required:true},{id:'title',label:'Project Title',type:'text',full:true},{id:'teamsize',label:'Team Size',type:'number'},{id:'duration',label:'Duration',type:'text'},{id:'evaldate',label:'Evaluation Date',type:'date',required:true},{id:'filelink',label:'Report / Link',type:'text'}],cols:['ay','subject','class','title','teamsize','evaldate']},
+
+  fc12:{label:"FC12 — Additional Inputs",color:"#0D9488",fields:[{id:'ay',label:'Academic Year',type:'text',required:true,placeholder:'e.g. 2025-26'},{id:'subject',label:'Subject / Course',type:'text',required:true},{id:'class',label:'Class',type:'text',required:true},{id:'topic',label:'Topic',type:'text',full:true},{id:'date',label:'Date',type:'date',required:true},{id:'mode',label:'Mode',type:'select',opts:MODES},{id:'resource',label:'Resource Used',type:'text'}],cols:['ay','subject','class','date','mode']},
+
+  fc13:{label:"FC13 — CIA",color:"#7C3AED",fields:[{id:'ay',label:'Academic Year',type:'text',required:true,placeholder:'e.g. 2025-26'},{id:'semester',label:'Semester',type:'text',required:true},{id:'subject',label:'Subject / Course',type:'text',required:true},{id:'class',label:'Class',type:'text',required:true},{id:'ciatype',label:'CIA Type',type:'select',opts:['Mid Exam','Seminar','Assignment','Project','Quiz','Lab Record','Others']},{id:'date',label:'Date',type:'date',required:true},{id:'marks',label:'Max Marks',type:'number'},{id:'avg',label:'Avg Score',type:'number'},{id:'pass',label:'Pass %',type:'number'}],cols:['ay','semester','subject','class','ciatype','date','pass']},
+
+  fc14:{label:"FC14 — Result Analysis",color:"#DB2777",fields:[{id:'ay',label:'Academic Year',type:'text',required:true,placeholder:'e.g. 2025-26'},{id:'semester',label:'Semester',type:'text',required:true},{id:'subject',label:'Subject / Course',type:'text',required:true},{id:'class',label:'Class',type:'text',required:true},{id:'appeared',label:'Students Appeared',type:'number'},{id:'pass',label:'Pass',type:'number'},{id:'fail',label:'Fail',type:'number'},{id:'passpct',label:'Pass %',type:'number'},{id:'highest',label:'Highest Marks',type:'number'},{id:'avg',label:'Average Marks',type:'number'}],cols:['ay','semester','subject','class','appeared','pass','passpct']},
+
+  fc15:{label:"FC15 — CSP",color:"#B45309",fields:[{id:'ay',label:'Academic Year',type:'text',required:true,placeholder:'e.g. 2025-26'},{id:'semester',label:'Semester',type:'text',required:true},{id:'subject',label:'Subject / Course',type:'text',required:true},{id:'class',label:'Class',type:'text',required:true},{id:'responses',label:'No. of Responses',type:'number'},{id:'rating',label:'Avg Rating (out of 5)',type:'number'},{id:'feedback',label:'Key Feedback',type:'textarea',full:true},{id:'action',label:'Action Taken',type:'textarea',full:true}],cols:['ay','semester','subject','class','responses','rating']},
+
+  fc16:{label:"FC16 — Short Term Internship",color:"#15803D",fields:[{id:'ay',label:'Academic Year',type:'text',required:true,placeholder:'e.g. 2025-26'},{id:'class',label:'Class',type:'text',required:true},{id:'students',label:'No. of Students',type:'number'},{id:'org',label:'Organisation',type:'text',required:true,full:true},{id:'duration',label:'Duration',type:'text'},{id:'start',label:'Start Date',type:'date',required:true},{id:'end',label:'End Date',type:'date'},{id:'domain',label:'Domain / Area',type:'text'}],cols:['ay','class','students','org','start','domain']},
+
+  fc17:{label:"FC17 — Long Term Internship",color:"#EA580C",fields:[{id:'ay',label:'Academic Year',type:'text',required:true,placeholder:'e.g. 2025-26'},{id:'class',label:'Class',type:'text',required:true},{id:'students',label:'No. of Students',type:'number'},{id:'org',label:'Organisation',type:'text',required:true,full:true},{id:'duration',label:'Duration',type:'text'},{id:'start',label:'Start Date',type:'date',required:true},{id:'end',label:'End Date',type:'date'},{id:'domain',label:'Domain / Area',type:'text'},{id:'stipend',label:'Stipend?',type:'select',opts:['Yes','No','Partial']}],cols:['ay','class','students','org','start','domain']},
+
+  fc18:{label:"FC18 — Mentor-Mentee",color:"#B91C1C",fields:[{id:'ay',label:'Academic Year',type:'text',required:true,placeholder:'e.g. 2025-26'},{id:'class',label:'Class',type:'text',required:true},{id:'mentees',label:'No. of Mentees',type:'number'},{id:'date',label:'Meeting Date',type:'date',required:true},{id:'meetno',label:'Meeting No.',type:'number'},{id:'topics',label:'Topics Discussed',type:'textarea',full:true},{id:'action',label:'Action Taken',type:'text',full:true}],cols:['ay','class','mentees','date','meetno']},
+
+  fc19:{label:"FC19 — Question Papers",color:"#0F2557",fields:[{id:'ay',label:'Academic Year',type:'text',required:true,placeholder:'e.g. 2025-26'},{id:'semester',label:'Semester',type:'text',required:true},{id:'subject',label:'Subject / Course',type:'text',required:true},{id:'class',label:'Class',type:'text',required:true},{id:'examtype',label:'Exam Type',type:'select',opts:['Mid Exam','End Semester','Supplementary','Model','Practice']},{id:'date',label:'Date of Exam',type:'date',required:true},{id:'marks',label:'Max Marks',type:'number'},{id:'filelink',label:'QP File / Link',type:'text',full:true}],cols:['ay','semester','subject','class','examtype','date','marks']},
+
+  fc20:{label:"FC20 — Teaching Pedagogies",color:"#7C3AED",fields:[{id:'ay',label:'Academic Year',type:'text',required:true,placeholder:'e.g. 2025-26'},{id:'subject',label:'Subject / Course',type:'text',required:true},{id:'class',label:'Class',type:'text',required:true},{id:'method',label:'Pedagogy / Method',type:'select',opts:['Flipped Classroom','Collaborative Learning','Problem Based Learning','Case Study','Role Play','Peer Teaching','Project Based','Others']},{id:'date',label:'Date Implemented',type:'date',required:true},{id:'students',label:'No. of Students',type:'number'},{id:'outcome',label:'Outcome',type:'text',full:true},{id:'filelink',label:'Evidence Link / File',type:'text'}],cols:['ay','subject','class','method','date','students']},
+
+  custom:{label:"Custom Activities",color:"#4338CA",
+    fields:[
+      {id:'ay',label:'Academic Year',type:'text',required:true,placeholder:'e.g. 2025-26'},
+      {id:'category',label:'Your Category Name',type:'text',required:true,placeholder:'e.g. Award, Patent, MoU, Extension Activity'},
+      {id:'title',label:'Activity Title',type:'text',required:true,full:true},
+      {id:'date',label:'Date',type:'date',required:true},
+      {id:'mode',label:'Mode',type:'select',opts:MODES},
+      {id:'level',label:'Level',type:'select',opts:LEVELS},
+      {id:'organizer',label:'Organizer / Publisher',type:'text'},
+      {id:'role',label:'Your Role',type:'text'},
+      {id:'cert',label:'Certificate / Evidence?',type:'select',opts:CERTS},
+      {id:'url',label:'Remarks / URL',type:'text',full:true},
+    ],cols:['ay','category','title','date','level','role','cert']}
+};
+
+// ══════════════════════════════════════════════════
+// FIREBASE STATE  (live in-memory cache)
+// ══════════════════════════════════════════════════
+let fbData   = {};   // { sheetId: { fbKey: record, ... } }
+let fbProfile = {};
+let listeners = {};
+
+function initFirebase() {
+  setSyncStatus('syncing','Connecting…');
+
+  // Profile
+  db.ref(`${ROOT}/profile`).on('value', snap => {
+    fbProfile = snap.val() || {};
+    renderProfileIfVisible();
+    updateHdrName();
+    if (currentView === 'dashboard') renderDashboard();
+  });
+
+  // All sheet data — one listener per sheet
+  Object.keys(SHEETS).forEach(sheetId => {
+    fbData[sheetId] = {};
+    const ref = db.ref(`${ROOT}/sheets/${sheetId}`);
+    ref.on('value', snap => {
+      fbData[sheetId] = snap.val() || {};
+      updateBadge(sheetId);
+      if (currentView === sheetId) renderSheet(sheetId);
+      if (currentView === 'dashboard') renderDashboard();
+      if (currentView === 'summary') renderSummary();
+    }, err => {
+      setSyncStatus('error', 'DB Error');
+      console.error(err);
+    });
+  });
+
+  // Connection status
+  db.ref('.info/connected').on('value', snap => {
+    if (snap.val()) {
+      setSyncStatus('ok','Live ✓');
+      document.getElementById('loading').style.display = 'none';
+    } else {
+      setSyncStatus('syncing','Reconnecting…');
+    }
+  });
+}
+
+function setSyncStatus(state, text) {
+  const dot  = document.getElementById('sync-dot');
+  const span = document.getElementById('sync-text');
+  dot.className = '';
+  if (state === 'syncing') dot.classList.add('syncing');
+  else if (state === 'error') dot.classList.add('error');
+  span.textContent = text;
+}
+
+// ══════════════════════════════════════════════════
+// NAVIGATION
+// ══════════════════════════════════════════════════
+let currentView = 'dashboard';
+function showView(id) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('view-' + id).classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(n => {
+    if (n.getAttribute('onclick') === `showView('${id}')`) n.classList.add('active');
+  });
+  currentView = id;
+  if (id === 'dashboard') renderDashboard();
+  else if (id === 'summary') renderSummary();
+  else if (id === 'profile') renderProfile();
+  else if (SHEETS[id]) renderSheet(id);
+  if (window.innerWidth <= 768) document.getElementById('sidebar').classList.remove('open');
+}
+function toggleSidebar() { document.getElementById('sidebar').classList.toggle('open'); }
+
+// ══════════════════════════════════════════════════
+// SHEET RENDERER
+// ══════════════════════════════════════════════════
+function renderSheet(sheetId) {
+  const sh = SHEETS[sheetId];
+  const records = Object.entries(fbData[sheetId] || {});
+  const container = document.getElementById('view-' + sheetId);
+
+  let html = `<div class="page-title">${sh.label}</div>
+  <div class="page-sub">Data synced live via Firebase · Total entries: <strong>${records.length}</strong></div>`;
+
+  // FORM
+  html += `<div class="form-card">
+  <div class="form-card-title" style="color:${sh.color}">➕ Add New Entry — syncs to all devices instantly</div>
+  <div class="form-grid">`;
+  sh.fields.forEach(f => {
+    const cls = f.full ? ' full' : '';
+    html += `<div class="form-group${cls}"><label>${f.label}${f.required?' *':''}</label>`;
+    if (f.type === 'select') {
+      html += `<select id="f-${sheetId}-${f.id}"><option value="">— Select —</option>${(f.opts||[]).map(o=>`<option>${o}</option>`).join('')}</select>`;
+    } else if (f.type === 'textarea') {
+      html += `<textarea id="f-${sheetId}-${f.id}" rows="2" placeholder="${f.placeholder||''}"></textarea>`;
+    } else {
+      html += `<input type="${f.type||'text'}" id="f-${sheetId}-${f.id}" placeholder="${f.placeholder||''}">`;
+    }
+    html += `</div>`;
+  });
+  html += `</div><div class="form-actions">
+    <button class="btn btn-primary" onclick="addRecord('${sheetId}')">☁️ Save to Firebase</button>
+    <button class="btn btn-secondary" onclick="clearForm('${sheetId}')">🗑️ Clear</button>
+  </div></div>`;
+
+  // TABLE
+  html += `<div class="table-card">
+  <div class="table-hdr" style="background:${sh.color}">
+    <span class="table-hdr-title">${sh.label}</span>
+    <span class="table-count">${records.length} entries</span>
+  </div><div class="table-wrap">`;
+
+  if (!records.length) {
+    html += `<div class="empty-state"><div class="empty-icon">📭</div>No entries yet. Add your first entry above!</div>`;
+  } else {
+    const cols = sh.cols;
+    html += `<table><thead><tr>${cols.map(c=>`<th>${sh.fields.find(f=>f.id===c)?.label||c}</th>`).join('')}<th>Action</th></tr></thead><tbody>`;
+    records.forEach(([fbKey, rec]) => {
+      html += `<tr>`;
+      cols.forEach(c => {
+        const v = rec[c] || '—';
+        const isAY = c === 'ay';
+        html += `<td title="${v}">${isAY ? `<span class="td-ay">${v}</span>` : v}</td>`;
+      });
+      html += `<td><button class="del-btn" onclick="delRecord('${sheetId}','${fbKey}')">✕ Del</button></td></tr>`;
+    });
+    html += `</tbody></table>`;
+  }
+  html += `</div></div>`;
+  container.innerHTML = html;
+}
+
+async function addRecord(sheetId) {
+  const sh = SHEETS[sheetId];
+  const rec = { _ts: Date.now() };
+  let valid = true;
+  sh.fields.forEach(f => {
+    const el = document.getElementById(`f-${sheetId}-${f.id}`);
+    if (!el) return;
+    const val = el.value.trim();
+    if (f.required && !val) { el.style.borderColor = '#B91C1C'; valid = false; }
+    else { el.style.borderColor = ''; rec[f.id] = val; }
+  });
+  if (!valid) { showToast('⚠️ Fill all required (*) fields'); return; }
+
+  setSyncStatus('syncing', 'Saving…');
+  try {
+    await db.ref(`${ROOT}/sheets/${sheetId}`).push(rec);
+    clearForm(sheetId);
+    setSyncStatus('ok', 'Live ✓');
+    showToast(`✅ Saved to Firebase — visible on all devices!`);
+  } catch(e) {
+    setSyncStatus('error', 'Save failed');
+    showToast('❌ Save failed. Check internet connection.');
+  }
+}
+
+async function delRecord(sheetId, fbKey) {
+  if (!confirm('Delete this entry from Firebase? It will be removed on all devices.')) return;
+  setSyncStatus('syncing', 'Deleting…');
+  try {
+    await db.ref(`${ROOT}/sheets/${sheetId}/${fbKey}`).remove();
+    setSyncStatus('ok', 'Live ✓');
+    showToast('🗑️ Deleted from Firebase');
+  } catch(e) {
+    setSyncStatus('error', 'Delete failed');
+    showToast('❌ Delete failed');
+  }
+}
+
+function clearForm(sheetId) {
+  SHEETS[sheetId].fields.forEach(f => {
+    const el = document.getElementById(`f-${sheetId}-${f.id}`);
+    if (el) { el.value = ''; el.style.borderColor = ''; }
+  });
+}
+
+// ══════════════════════════════════════════════════
+// BADGES
+// ══════════════════════════════════════════════════
+function updateBadge(sheetId) {
+  const el = document.getElementById('badge-' + sheetId);
+  if (el) el.textContent = Object.keys(fbData[sheetId] || {}).length;
+}
+function updateAllBadges() { Object.keys(SHEETS).forEach(updateBadge); }
+
+// ══════════════════════════════════════════════════
+// DASHBOARD
+// ══════════════════════════════════════════════════
+let charts = {};
+let activeAY = 'All';
+
+function getAllRecords() {
+  const all = [];
+  Object.keys(SHEETS).forEach(k => {
+    Object.values(fbData[k] || {}).forEach(r => {
+      all.push({...r, _sheet: k, _ay: r.ay || ''});
+    });
+  });
+  return all;
+}
+
+function renderDashboard() {
+  const p = fbProfile;
+  const name    = p.name    || 'Dr. C.V. Krishnaveni';
+  const dept    = p.dept    || 'Computer Science';
+  const college = p.college || 'SKR & SKR GCW(A), Kadapa';
+  document.getElementById('dash-profile-line').textContent = `${name} · ${dept} · ${college}`;
+  updateHdrName();
+
+  const allData = getAllRecords();
+
+  // AY chips — collected from actual data, sorted nicely
+  const usedAYs = [...new Set(allData.map(r=>r._ay).filter(Boolean))].sort((a,b)=>a.localeCompare(b));
+  let chips = `<div class="ay-chip ${activeAY==='All'?'active':''}" onclick="setAY('All')">All Years</div>`;
+  usedAYs.forEach(ay => {
+    chips += `<div class="ay-chip ${activeAY===ay?'active':''}" onclick="setAY('${ay}')">${ay}</div>`;
+  });
+  document.getElementById('ay-chips').innerHTML = chips;
+
+  const filtered = activeAY === 'All' ? allData : allData.filter(r=>r._ay===activeAY);
+
+  const apC  = filtered.filter(r=>r._sheet.startsWith('ap')).length;
+  const fcC  = filtered.filter(r=>r._sheet.startsWith('fc')).length;
+  const cuC  = filtered.filter(r=>r._sheet==='custom').length;
+  const pubC = filtered.filter(r=>['ap11','ap12','ap13','ap10'].includes(r._sheet)).length;
+
+  document.getElementById('stat-grid').innerHTML = `
+    <div class="stat-card" style="border-top-color:#0F2557"><div class="stat-num">${filtered.length}</div><div class="stat-label">Total Activities</div></div>
+    <div class="stat-card" style="border-top-color:#1D4ED8"><div class="stat-num">${apC}</div><div class="stat-label">Academic Proficiency</div></div>
+    <div class="stat-card" style="border-top-color:#0D9488"><div class="stat-num">${fcC}</div><div class="stat-label">Course File Items</div></div>
+    <div class="stat-card" style="border-top-color:#4338CA"><div class="stat-num">${cuC}</div><div class="stat-label">Custom Activities</div></div>
+    <div class="stat-card" style="border-top-color:#7C3AED"><div class="stat-num">${pubC}</div><div class="stat-label">Publications</div></div>
+    <div class="stat-card" style="border-top-color:#15803D"><div class="stat-num">${usedAYs.length}</div><div class="stat-label">Academic Years</div></div>`;
+
+  renderCharts(filtered, usedAYs);
+}
+
+function setAY(ay) { activeAY = ay; renderDashboard(); }
+
+function renderCharts(filtered, usedAYs) {
+  // BY AY
+  const ayMap = {};
+  usedAYs.forEach(ay => ayMap[ay] = 0);
+  filtered.forEach(r => { if (r._ay) ayMap[r._ay] = (ayMap[r._ay]||0) + 1; });
+  const sortedAYs = Object.keys(ayMap).sort((a,b)=>a.localeCompare(b));
+
+  if (charts.ay) charts.ay.destroy();
+  charts.ay = new Chart(document.getElementById('chart-ay'), {
+    type:'bar',
+    data:{ labels: sortedAYs.length ? sortedAYs : ['No data'],
+      datasets:[{label:'Activities', data: sortedAYs.map(ay=>ayMap[ay]||0), backgroundColor:CHART_COLORS, borderRadius:6, borderSkipped:false}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{stepSize:1}}}}
+  });
+
+  // DONUT
+  const apC=filtered.filter(r=>r._sheet.startsWith('ap')).length;
+  const fcC=filtered.filter(r=>r._sheet.startsWith('fc')).length;
+  const cuC=filtered.filter(r=>r._sheet==='custom').length;
+  if (charts.donut) charts.donut.destroy();
+  charts.donut = new Chart(document.getElementById('chart-donut'), {
+    type:'doughnut',
+    data:{ labels:['Academic Proficiency','Course File','Custom'],
+      datasets:[{data:[apC,fcC,cuC],backgroundColor:['#1D4ED8','#0D9488','#4338CA'],borderWidth:3,borderColor:'#fff'}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{font:{size:11},padding:10}}},cutout:'65%'}
+  });
+
+  // TOP CATEGORIES
+  const catMap = {};
+  filtered.forEach(r => {
+    const lbl = SHEETS[r._sheet]?.label?.split(' — ')[1] || r._sheet;
+    catMap[lbl] = (catMap[lbl]||0) + 1;
+  });
+  const sorted = Object.entries(catMap).sort((a,b)=>b[1]-a[1]).slice(0,10);
+  if (charts.top) charts.top.destroy();
+  charts.top = new Chart(document.getElementById('chart-top'), {
+    type:'bar',
+    data:{ labels:sorted.map(x=>x[0]), datasets:[{label:'Count',data:sorted.map(x=>x[1]),backgroundColor:CHART_COLORS,borderRadius:4}]},
+    options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{beginAtZero:true,ticks:{stepSize:1}}}}
+  });
+}
+
+// ══════════════════════════════════════════════════
+// SUMMARY
+// ══════════════════════════════════════════════════
+function renderSummary() {
+  const allRecs = getAllRecords();
+  const usedAYs = [...new Set(allRecs.map(r=>r._ay).filter(Boolean))].sort((a,b)=>a.localeCompare(b));
+  if (!usedAYs.length) {
+    document.getElementById('summary-content').innerHTML = '<div class="empty-state"><div class="empty-icon">📭</div>No data yet. Add activities to see the summary.</div>';
+    return;
+  }
+
+  const countFor = (sheetId, ay) => Object.values(fbData[sheetId]||{}).filter(r=>r.ay===ay).length;
+
+  let html = `<table class="summary-table"><thead><tr><th>Activity</th>${usedAYs.map(ay=>`<th>${ay}</th>`).join('')}<th>TOTAL</th></tr></thead><tbody>`;
+
+  const apKeys = Object.keys(SHEETS).filter(k=>k.startsWith('ap'));
+  const fcKeys = Object.keys(SHEETS).filter(k=>k.startsWith('fc'));
+
+  const makeRow = (label, sheetId, col) => {
+    const counts = usedAYs.map(ay=>countFor(sheetId,ay));
+    const total = counts.reduce((a,b)=>a+b,0);
+    return `<tr><td style="font-size:11px">${label}</td>${counts.map(c=>`<td class="num-cell ${c>0?'has-data':''}">${c||'—'}</td>`).join('')}<td class="num-cell" style="font-weight:700;color:${col}">${total||'—'}</td></tr>`;
+  };
+
+  html += `<tr class="sec-row"><td colspan="${usedAYs.length+2}">◆ ACADEMIC PROFICIENCY (AP01–AP23)</td></tr>`;
+  apKeys.forEach(k => html += makeRow(SHEETS[k].label, k, '#1D4ED8'));
+  html += `<tr class="sec-row"><td colspan="${usedAYs.length+2}">◆ FACULTY COURSE FILE (FC01–FC20)</td></tr>`;
+  fcKeys.forEach(k => html += makeRow(SHEETS[k].label, k, '#0D9488'));
+  html += `<tr class="sec-row"><td colspan="${usedAYs.length+2}">◆ CUSTOM ACTIVITIES</td></tr>`;
+  html += makeRow('All Custom Activities','custom','#4338CA');
+
+  const grandTotals = usedAYs.map(ay => Object.keys(SHEETS).reduce((s,k)=>s+countFor(k,ay),0));
+  const grand = grandTotals.reduce((a,b)=>a+b,0);
+  html += `<tr class="total-row"><td>GRAND TOTAL</td>${grandTotals.map(c=>`<td class="num-cell">${c||'—'}</td>`).join('')}<td class="num-cell">${grand}</td></tr>`;
+  html += `</tbody></table>`;
+  document.getElementById('summary-content').innerHTML = html;
+}
+
+// ══════════════════════════════════════════════════
+// PROFILE
+// ══════════════════════════════════════════════════
+function renderProfile() {
+  const p = fbProfile;
+  const f = (id,label,val,type='text') =>
+    `<div class="form-group"><label>${label}</label><input type="${type}" id="prof-${id}" value="${val||''}" placeholder="${label}"></div>`;
+
+  document.getElementById('profile-grid').innerHTML = `
+    <div class="profile-section">
+      <h3>Personal Details</h3>
+      <div class="form-grid">
+        ${f('name','Full Name',p.name)}${f('desig','Designation',p.desig)}
+        ${f('dept','Department',p.dept)}${f('spec','Specialization',p.spec)}
+        ${f('join','Date of Joining',p.join)}${f('qual','Qualification',p.qual)}
+        ${f('empid','Employee ID',p.empid)}
+      </div>
+    </div>
+    <div class="profile-section">
+      <h3>Institution Details</h3>
+      <div class="form-grid">
+        ${f('college','College Name',p.college)}${f('district','District',p.district)}
+        ${f('state','State',p.state)}${f('university','Affiliated University',p.university)}
+        ${f('naac','NAAC Grade',p.naac)}${f('auto','Autonomous Status',p.auto)}
+      </div>
+    </div>
+    <div class="profile-section full">
+      <h3>Online Presence</h3>
+      <div class="form-grid">
+        ${f('email','Email',p.email,'email')}${f('mobile','Mobile',p.mobile,'tel')}
+        ${f('blog','Blog / Portfolio URL',p.blog,'url')}${f('scholar','Google Scholar URL',p.scholar,'url')}
+        ${f('orcid','ORCID ID',p.orcid)}${f('scopus','Scopus Author ID',p.scopus)}
+        ${f('linkedin','LinkedIn URL',p.linkedin,'url')}${f('zenodo','Zenodo Profile',p.zenodo,'url')}
+      </div>
+      <div class="form-actions">
+        <button class="btn btn-primary" onclick="saveProfile()">☁️ Save Profile to Firebase</button>
+      </div>
+    </div>
+    <div class="profile-section full">
+      <h3>Tool Information</h3>
+      <div style="font-size:12px;line-height:2;color:var(--muted)">
+        <strong style="color:var(--navy)">Faculty Academic Activity Tracker v2.0</strong><br>
+        Designed & Developed by <strong>Dr. C.V. Krishnaveni</strong><br>
+        HOD-CS & IQAC Coordinator, SKR & SKR GCW(A), Kadapa, AP<br>
+        <a href="https://cvkrishnaveni.blogspot.com" target="_blank">cvkrishnaveni.blogspot.com</a><br>
+        © 2025 | CC BY 4.0 — Free to use with attribution<br>
+        <span style="color:#15803D;font-weight:600">☁️ Powered by Firebase Realtime Database — data synced across all devices</span>
+      </div>
+    </div>`;
+}
+
+async function saveProfile() {
+  const ids = ['name','desig','dept','spec','join','qual','empid','college','district','state','university','naac','auto','email','mobile','blog','scholar','orcid','scopus','linkedin','zenodo'];
+  const prof = {};
+  ids.forEach(id => {
+    const el = document.getElementById('prof-'+id);
+    if (el) prof[id] = el.value.trim();
+  });
+  setSyncStatus('syncing','Saving…');
+  try {
+    await db.ref(`${ROOT}/profile`).set(prof);
+    setSyncStatus('ok','Live ✓');
+    showToast('✅ Profile saved to Firebase!');
+  } catch(e) {
+    setSyncStatus('error','Save failed');
+    showToast('❌ Save failed');
+  }
+}
+
+function updateHdrName() {
+  const el = document.getElementById('hdr-name');
+  if (el) el.textContent = fbProfile.name || '';
+}
+
+function renderProfileIfVisible() {
+  if (currentView === 'profile') renderProfile();
+}
+
+// ══════════════════════════════════════════════════
+// EXPORT CSV
+// ══════════════════════════════════════════════════
+function exportCSV() {
+  const all = getAllRecords();
+  if (!all.length) { showToast('No data to export'); return; }
+  const cols = ['_sheet','_ay','title','category','organizer','date','start','end','mode','level','cert','role','url','remarks'];
+  const rows = [cols.join(',')];
+  all.forEach(r => rows.push(cols.map(c=>`"${(r[c]||'').replace(/"/g,'""')}"`).join(',')));
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([rows.join('\n')],{type:'text/csv'}));
+  a.download = 'FacultyTracker_Export.csv'; a.click();
+  showToast('⬇️ CSV exported!');
+}
+
+// ══════════════════════════════════════════════════
+// TOAST
+// ══════════════════════════════════════════════════
+let toastTimer;
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=>t.classList.remove('show'), 2800);
+}
+
+// ══════════════════════════════════════════════════
+// INIT
+// ══════════════════════════════════════════════════
+initFirebase();
+</script>
+</body>
+</html>
