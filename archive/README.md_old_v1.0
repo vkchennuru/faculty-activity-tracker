@@ -1,1 +1,287 @@
+<div align="center">
+
+<img src="https://img.shields.io/badge/-%F0%9F%8E%93%20FACULTY%20ACADEMIC%20ACTIVITY%20TRACKER-0F2557?style=for-the-badge&logoColor=white" height="40"/>
+
+<br/><br/>
+
+[![License: CC BY 4.0](https://img.shields.io/badge/License-CC%20BY%204.0-22C55E?style=flat-square&logo=creativecommons&logoColor=white)](https://creativecommons.org/licenses/by/4.0/)
+[![Version](https://img.shields.io/badge/Version-2.0-1D4ED8?style=flat-square)](.)
+[![Firebase](https://img.shields.io/badge/Database-Firebase%20Realtime-FF6F00?style=flat-square&logo=firebase&logoColor=white)](https://firebase.google.com)
+[![GitHub Pages](https://img.shields.io/badge/Hosted%20on-GitHub%20Pages-181717?style=flat-square&logo=github&logoColor=white)](.)
+[![Made in India](https://img.shields.io/badge/Made%20in-India%20%F0%9F%87%AE%F0%9F%87%B3-FF9933?style=flat-square)](.)
+[![No Install](https://img.shields.io/badge/Platform-Browser%20%7C%20No%20Install-7C3AED?style=flat-square)](.)
+
+<br/>
+
+> **An all-in-one, Firebase-powered faculty activity management web app.**
+> Enter data from any device. Dashboard updates live. No installation. No login. Forever free.
+
+<br/>
+
+---
+
+</div>
+
+## 👩‍💻 Designed & Developed by
+
+<table>
+<tr>
+<td width="60px" align="center">🎓</td>
+<td>
+<strong>Dr. C.V. Krishnaveni (Venkata Krishnaveni Chennuru)</strong><br/>
+Lecturer in Computer Science & Head of Department · IQAC Coordinator<br/>
+SKR & SKR Government College for Women (Autonomous), Kadapa, Andhra Pradesh, India<br/>
+🔗 <a href="https://cvkrishnaveni.blogspot.com">cvkrishnaveni.blogspot.com</a>
+</td>
+</tr>
+</table>
+
+<div align="center">
+
+### © 2025 Dr. C.V. Krishnaveni. All Rights Reserved.
+*Licensed under [Creative Commons Attribution 4.0 International (CC BY 4.0)](LICENSE)*
+
+</div>
+
+---
+
+## 🌟 What Is This?
+
+The **Faculty Academic Activity Tracker** is a **single HTML file** web application that allows faculty to:
+
+| 🎯 Feature | 💬 Description |
+|---|---|
+| 📝 **Enter activities online** | Fill forms directly in the browser — no Excel, no software needed |
+| ☁️ **Firebase sync** | Data saved to Firebase Realtime Database — visible on all devices instantly |
+| 📊 **Live dashboard** | Charts and stats update the moment you save an entry |
+| 📅 **Any academic year** | Type `2016-17`, `2020-21`, `2025-26` — no dropdown restriction |
+| 📋 **NAAC-ready summary** | Auto-count by year across all 43 activity categories |
+| ⬇️ **CSV export** | Download all records for reports and AQAR submission |
+| 📱 **Responsive** | Works on desktop, laptop, tablet, and mobile |
+| 🔓 **No login required** | Anyone with the link can enter data |
+
+---
+
+## 🚀 Live Demo
+
+> 🌐 **[Open the App →](https://yourgithubusername.github.io/faculty-activity-tracker)**
+> *(Replace with your actual GitHub Pages URL after deployment)*
+
+---
+
+## 📂 Repository Contents
+
+```
+📁 faculty-activity-tracker/
+│
+├── 📄 index.html                          ← Main web app (Firebase-powered)
+├── 📊 FacultyActivityTracker_DrCVK_v2.xlsx ← Excel version (48 sheets, offline use)
+├── 📖 README.md                           ← This file
+└── ⚖️  LICENSE                            ← CC BY 4.0
+```
+
+---
+
+## ⚡ Quick Start
+
+### 1️⃣ Set Firebase Rules
+Go to **Firebase Console → Realtime Database → Rules** and set:
+```json
+{
+  "rules": {
+    ".read": true,
+    ".write": true
+  }
+}
+```
+Click **Publish**.
+
+### 2️⃣ Upload to GitHub
+- Create a new **public** repository
+- Upload `FacultyTracker_Firebase_DrCVK.html` → rename to **`index.html`**
+- Commit
+
+### 3️⃣ Enable GitHub Pages
+**Settings → Pages → Source: main branch → / (root) → Save**
+
+Your app is live at: `https://yourusername.github.io/faculty-activity-tracker`
+
+### 4️⃣ Start Using
+- Open the URL from **any device**
+- Go to **👤 My Profile** → fill your details → **Save to Firebase**
+- Navigate any AP / FC / Custom section → fill form → **Save to Firebase**
+- Watch the **📊 Dashboard** update instantly!
+
+---
+
+## 📋 Activity Categories Covered
+
+<details>
+<summary>📘 <strong>Academic Proficiency — AP01 to AP23</strong> (click to expand)</summary>
+
+<br/>
+
+| Code | Activity | Code | Activity |
+|---|---|---|---|
+| ![AP01](https://img.shields.io/badge/AP01-FDPs%20Attended-0F2557?style=flat-square) | FDPs Attended | ![AP02](https://img.shields.io/badge/AP02-Workshops-0891B2?style=flat-square) | Workshops Attended |
+| ![AP03](https://img.shields.io/badge/AP03-Trainings-0D9488?style=flat-square) | Trainings Attended | ![AP04](https://img.shields.io/badge/AP04-Resource%20Person-7C3AED?style=flat-square) | Resource Person |
+| ![AP05](https://img.shields.io/badge/AP05-FDPs%20Org-EA580C?style=flat-square) | FDPs Organized | ![AP06](https://img.shields.io/badge/AP06-Workshops%20Org-15803D?style=flat-square) | Workshops Organized |
+| ![AP07](https://img.shields.io/badge/AP07-Trainings%20Org-B45309?style=flat-square) | Trainings Organized | ![AP08](https://img.shields.io/badge/AP08-Webinars%20Org-DB2777?style=flat-square) | Webinars Organized |
+| ![AP09](https://img.shields.io/badge/AP09-Papers%20Seminars-B91C1C?style=flat-square) | Papers in Seminars | ![AP10](https://img.shields.io/badge/AP10-Conf%20Papers-0F2557?style=flat-square) | Conference Papers |
+| ![AP11](https://img.shields.io/badge/AP11-Journal%20Papers-7C3AED?style=flat-square) | Journal Papers | ![AP12](https://img.shields.io/badge/AP12-Book%20Chapters-0D9488?style=flat-square) | Book Chapters |
+| ![AP13](https://img.shields.io/badge/AP13-Books%20Published-EA580C?style=flat-square) | Books Published | ![AP14](https://img.shields.io/badge/AP14-LMS%20eContent-15803D?style=flat-square) | LMS eContent |
+| ![AP15](https://img.shields.io/badge/AP15-LMS%20Expert-0891B2?style=flat-square) | LMS Subject Expert | ![AP16](https://img.shields.io/badge/AP16-Academic%20Audit-0F2557?style=flat-square) | Academic Audit |
+| ![AP17](https://img.shields.io/badge/AP17-Guest%20Lec%20Org-DB2777?style=flat-square) | Guest Lec. Organized | ![AP18](https://img.shields.io/badge/AP18-Meetings-B45309?style=flat-square) | Meetings Attended |
+| ![AP19](https://img.shields.io/badge/AP19-Cert%20Courses-15803D?style=flat-square) | Certificate Courses | ![AP20](https://img.shields.io/badge/AP20-Committees-0D9488?style=flat-square) | Committees |
+| ![AP21](https://img.shields.io/badge/AP21-Guest%20Lec%20Given-7C3AED?style=flat-square) | Guest Lec. Given | ![AP22](https://img.shields.io/badge/AP22-Exam%20Duties-B91C1C?style=flat-square) | Exam Duties |
+| ![AP23](https://img.shields.io/badge/AP23-MOOCs-EA580C?style=flat-square) | MOOCs | | |
+
+</details>
+
+<details>
+<summary>📗 <strong>Faculty Course File — FC01 to FC20</strong> (click to expand)</summary>
+
+<br/>
+
+| Code | Activity | Code | Activity |
+|---|---|---|---|
+| ![FC01](https://img.shields.io/badge/FC01-Roll%20List-0F2557?style=flat-square) | Student Roll List | ![FC02](https://img.shields.io/badge/FC02-Time%20Table-0891B2?style=flat-square) | Time Table |
+| ![FC03](https://img.shields.io/badge/FC03-Lesson%20Plan-0D9488?style=flat-square) | Lesson Plan | ![FC04](https://img.shields.io/badge/FC04-Annual%20Plan-7C3AED?style=flat-square) | Annual Curricular Plan |
+| ![FC05](https://img.shields.io/badge/FC05-Teaching%20Diary-DB2777?style=flat-square) | Teaching Diary | ![FC06](https://img.shields.io/badge/FC06-Teaching%20Notes-B45309?style=flat-square) | Teaching Notes |
+| ![FC07](https://img.shields.io/badge/FC07-Student%20Seminars-15803D?style=flat-square) | Student Seminars | ![FC08](https://img.shields.io/badge/FC08-Quiz-EA580C?style=flat-square) | Quiz |
+| ![FC09](https://img.shields.io/badge/FC09-Group%20Discussions-B91C1C?style=flat-square) | Group Discussions | ![FC10](https://img.shields.io/badge/FC10-Assignment-0F2557?style=flat-square) | Assignment |
+| ![FC11](https://img.shields.io/badge/FC11-Study%20Projects-0891B2?style=flat-square) | Study Projects | ![FC12](https://img.shields.io/badge/FC12-Additional%20Inputs-0D9488?style=flat-square) | Additional Inputs |
+| ![FC13](https://img.shields.io/badge/FC13-CIA-7C3AED?style=flat-square) | CIA | ![FC14](https://img.shields.io/badge/FC14-Result%20Analysis-DB2777?style=flat-square) | Result Analysis |
+| ![FC15](https://img.shields.io/badge/FC15-CSP-B45309?style=flat-square) | CSP | ![FC16](https://img.shields.io/badge/FC16-Short%20Internship-15803D?style=flat-square) | Short Internship |
+| ![FC17](https://img.shields.io/badge/FC17-Long%20Internship-EA580C?style=flat-square) | Long Internship | ![FC18](https://img.shields.io/badge/FC18-Mentor%20Mentee-B91C1C?style=flat-square) | Mentor-Mentee |
+| ![FC19](https://img.shields.io/badge/FC19-Question%20Papers-0F2557?style=flat-square) | Question Papers | ![FC20](https://img.shields.io/badge/FC20-Pedagogies-7C3AED?style=flat-square) | Teaching Pedagogies |
+
+</details>
+
+<details>
+<summary>✨ <strong>Custom Activities</strong> — Add anything not in the list</summary>
+
+<br/>
+
+Use the **Custom Activities** section for:
+`Awards` · `Patents` · `MoUs` · `Consultancy` · `Extension Activities` · `NSS / NCC` · `Industry Collaboration` · `Any Other`
+
+Type your own category name — it appears in the dashboard and summary automatically.
+
+</details>
+
+---
+
+## 🗓️ Academic Year — Completely Free
+
+> No dropdown. No restriction. Type **any year** you want.
+
+```
+Examples:  2014-15  |  2016-17  |  2018-19  |  2025-26  |  2030-31
+```
+
+The **Dashboard** and **Summary Table** automatically group and display all years found in your data.
+
+---
+
+## 📊 NAAC / AQAR Mapping
+
+<div align="center">
+
+| NAAC Criterion | Covered By |
+|---|---|
+| ![C2](https://img.shields.io/badge/Criterion%202-Teaching%20Learning-1D4ED8?style=flat-square) | FC01–FC20, AP03, AP07, AP08 |
+| ![C3](https://img.shields.io/badge/Criterion%203-Research%20%26%20Innovation-7C3AED?style=flat-square) | AP09–AP13 (Publications) |
+| ![C4](https://img.shields.io/badge/Criterion%204-Infrastructure-0D9488?style=flat-square) | AP14, AP15 (LMS, eContent) |
+| ![C5](https://img.shields.io/badge/Criterion%205-Student%20Support-15803D?style=flat-square) | FC16–FC18 (Internship, Mentor) |
+| ![C6](https://img.shields.io/badge/Criterion%206-Governance-EA580C?style=flat-square) | AP16, AP18, AP20 |
+| ![C7](https://img.shields.io/badge/Criterion%207-Institutional%20Values-DB2777?style=flat-square) | AP05–AP08, Custom Activities |
+
+</div>
+
+---
+
+## 🔐 Data & Privacy
+
+```
+✅  All data stored in YOUR Firebase project
+✅  No third-party servers involved
+✅  No login required — share the URL and anyone can enter data
+✅  You own and control the database entirely
+✅  Export any time as CSV
+```
+
+---
+
+## 📖 How to Cite
+
+If you use this tool, please cite as:
+
+```bibtex
+@software{krishnaveni2025fat,
+  author    = {Krishnaveni, C.V.},
+  title     = {Faculty Academic Activity Tracker — Web App},
+  year      = {2025},
+  version   = {2.0},
+  publisher = {SKR & SKR Government College for Women (Autonomous), Kadapa},
+  url       = {https://cvkrishnaveni.blogspot.com},
+  license   = {CC BY 4.0}
+}
+```
+
+---
+
+## ⚖️ Licence
+
+<div align="center">
+
+[![CC BY 4.0](https://licensebuttons.net/l/by/4.0/88x31.png)](https://creativecommons.org/licenses/by/4.0/)
+
+**Creative Commons Attribution 4.0 International (CC BY 4.0)**
+
+</div>
+
+| ✅ You CAN | 📌 You MUST |
+|---|---|
+| Use freely for any purpose | Credit **Dr. C.V. Krishnaveni** |
+| Share with anyone | Link to the original repository |
+| Adapt and build upon it | Indicate if changes were made |
+| Use commercially | Keep the CC BY 4.0 licence |
+
+Full licence: [creativecommons.org/licenses/by/4.0](https://creativecommons.org/licenses/by/4.0/)
+
+---
+
+## 🤝 Contributing & Feedback
+
+- 🐛 Found a bug? → Open an [Issue](../../issues)
+- 💡 Have a suggestion? → Open a [Discussion](../../discussions)
+- 📧 Direct feedback → [cvkrishnaveni.blogspot.com](https://cvkrishnaveni.blogspot.com)
+
+---
+
+## 🗒️ Changelog
+
+| Version | Date | Highlights |
+|---|---|---|
+| ![v2.0](https://img.shields.io/badge/v2.0-March%202026-1D4ED8?style=flat-square) | March 2026 | Firebase Realtime Database · Free-text Academic Year · Live sync across devices · Removed localStorage |
+| ![v1.0](https://img.shields.io/badge/v1.0-2025-64748B?style=flat-square) | 2025 | Initial release · Excel tracker (48 sheets) · HTML Dashboard · localStorage |
+
+---
+
+<div align="center">
+
+---
+
+### 🇮🇳 Made with ❤️ for the academic community of India
+
+<img src="https://img.shields.io/badge/-%C2%A9%202025%20Dr.%20C.V.%20Krishnaveni%20%E2%80%94%20All%20Rights%20Reserved-0F2557?style=for-the-badge" />
+
+**SKR & SKR Government College for Women (Autonomous), Kadapa, Andhra Pradesh, India**
+
+🔗 [cvkrishnaveni.blogspot.com](https://cvkrishnaveni.blogspot.com)
+
+---
+
+</div>
 
