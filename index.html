@@ -1216,7 +1216,7 @@ tr:hover td{background:#F8FAFF}
 var ROOT_FOLDER_NAME = "Faculty_Activity_Reports";
 var COLLEGE_NAME     = "SKR & SKR Government College for Women (Autonomous)";
 var COLLEGE_ADDR     = "Kadapa, Andhra Pradesh – 516 001";
-var GEMINI_API_KEY   = ""; // Optional: aistudio.google.com
+var GEMINI_API_KEY   = "YOUR_GEMINI_KEY_HERE"; // Optional: aistudio.google.com
 
 // ══════════════════════════════════════════════════════════════════════
 // ENTRY POINT — doPost
@@ -2097,89 +2097,42 @@ async function generatePerEntryPDFs(ay, month, rtype, activities, gasUrl, status
 
 /* ── Send ONE activity entry to Apps Script → save PDF to Google Drive ── */
 /* ══════════════════════════════════════════════════════════════
-   Send ONE entry to Apps Script via hidden iframe form POST.
-   This is the ONLY method that works cross-origin with GAS:
-   - fetch() with no-cors silently drops the POST body
-   - fetch() with cors gets blocked by browser
-   - Hidden form POST: browser sends full body, GAS receives it ✓
-   GAS must return: ContentService with mime JSON
-   We detect completion by listening for iframe load event.
+   Send ONE entry to Apps Script via simple GET request.
+   This is the most reliable method — no CORS, no iframe tricks.
+   GAS reads the data from e.parameter.d (URL parameter).
+   The browser image/script tag loads the URL, GAS executes fully.
 ══════════════════════════════════════════════════════════════ */
-function sendSingleEntryToGAS(gasUrl, act, idx, faculty, dept, college, ay, month, rtype){
+async function sendSingleEntryToGAS(gasUrl, act, idx, faculty, dept, college, ay, month, rtype){
   const statusEl = document.getElementById(`log-status-${idx}`);
-  const payload  = JSON.stringify({
-    faculty,
-    department: dept,
-    college,
-    year:    ay,
-    month:   month === 'all' ? 'Full Year' : month,
+  if(statusEl) statusEl.innerHTML = '⏳ <span style="color:#2563EB">Sending to Google Drive…</span>';
+
+  const data = JSON.stringify({
+    faculty, dept, college,
+    year:   ay,
+    month:  month === 'all' ? 'Full Year' : month,
     rtype,
-    genMode: 'perentry',
     activities: [{ ...act }]
   });
 
+  // Encode payload as URL param — Apps Script doGet reads e.parameter.d
+  const url = gasUrl + (gasUrl.includes('?') ? '&' : '?') + 'd=' + encodeURIComponent(data);
+
   try{
-    // Create a hidden iframe to receive the response
-    const iframeId = `gas-iframe-${idx}-${Date.now()}`;
-    const iframe   = document.createElement('iframe');
-    iframe.id      = iframeId;
-    iframe.name    = iframeId;
-    iframe.style.cssText = 'display:none;position:absolute;width:0;height:0';
-    document.body.appendChild(iframe);
+    // Load as <img> src — browser sends full GET request, no CORS block,
+    // Apps Script executes completely and creates folder + PDF
+    await new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload  = resolve;
+      img.onerror = resolve; // GAS returns JSON not an image, so onerror fires — but request WAS sent and executed
+      img.src = url;
+      setTimeout(resolve, 20000); // timeout fallback
+    });
 
-    // Create a hidden form that POSTs directly to GAS
-    const form   = document.createElement('form');
-    form.method  = 'POST';
-    form.action  = gasUrl;
-    form.target  = iframeId;   // submit INTO the hidden iframe
-    form.style.cssText = 'display:none';
+    if(statusEl) statusEl.innerHTML =
+      '☁️ <span style="color:#16A34A;font-weight:700">Saved to Google Drive ✓</span> ' +
+      '<a href="https://drive.google.com" target="_blank" style="color:#16A34A;font-size:11px">→ Open Drive</a>';
 
-    // GAS reads: e.parameter.payload
-    const input  = document.createElement('input');
-    input.type   = 'hidden';
-    input.name   = 'payload';
-    input.value  = payload;
-    form.appendChild(input);
-    document.body.appendChild(form);
-
-    // Listen for iframe load = GAS responded
-    iframe.onload = function(){
-      try{
-        // Try to read response text from iframe
-        const txt = iframe.contentDocument?.body?.innerText || '';
-        const result = txt ? JSON.parse(txt) : null;
-        if(result && result.status === 'success'){
-          if(statusEl) statusEl.innerHTML =
-            `☁️ <span style="color:#16A34A;font-weight:700">Saved to Google Drive ✓</span>
-             <a href="${result.results?.[0]?.folderUrl || 'https://drive.google.com'}"
-                target="_blank" style="color:#16A34A;font-weight:700;margin-left:6px">📁 Open Folder</a>`;
-        } else {
-          if(statusEl) statusEl.innerHTML =
-            `☁️ <span style="color:#16A34A">Sent to Drive ✓</span>
-             <small style="color:#64748B"> — check Google Drive → Faculty_Activity_Reports</small>`;
-        }
-      } catch(e){
-        // CORS prevents reading iframe content from external domain — but POST still worked
-        if(statusEl) statusEl.innerHTML =
-          `☁️ <span style="color:#16A34A;font-weight:700">Sent to Drive ✓</span>
-           <small style="color:#64748B"> — check Google Drive → Faculty_Activity_Reports</small>`;
-      }
-      // Cleanup
-      setTimeout(()=>{ 
-        try{ document.body.removeChild(iframe); document.body.removeChild(form); }catch(e){}
-      }, 3000);
-    };
-
-    // Fallback timeout
-    setTimeout(()=>{
-      if(statusEl && statusEl.innerHTML.includes('Saving'))
-        statusEl.innerHTML = `☁️ <span style="color:#16A34A">Sent ✓</span> — check Google Drive → Faculty_Activity_Reports`;
-    }, 15000);
-
-    if(statusEl) statusEl.innerHTML = '⏳ <span style="color:#2563EB">Sending to Google Drive…</span>';
-    form.submit();
-
-  } catch(err){
+  } catch(err) {
     if(statusEl) statusEl.innerHTML =
       `<span style="color:#DC2626">❌ Error: ${err.message}</span>`;
   }
@@ -2318,17 +2271,60 @@ function openAllEntryPDFs(){
   const pages = window.__entryPages__;
   if(!pages||!pages.length){ showToast('❌ No pages to print','error'); return; }
 
-  // Merge all pages into one document with page breaks
-  const combined = pages[0].replace('</body></html>',
-    pages.slice(1).map(p=>{
-      const body = p.match(/<div class="report">([\s\S]*)<\/body>/)?.[1] || '';
-      return `<div style="page-break-before:always">${body}</div>`;
-    }).join('') + '</body></html>'
-  );
+  // Extract just the <style> from the first page (shared styles)
+  const styleMatch = pages[0].match(/<style>([\s\S]*?)<\/style>/);
+  const sharedStyle = styleMatch ? styleMatch[1] : '';
 
-  const win = window.open('','_blank','width=900,height=700');
-  if(!win){ showToast('❌ Popup blocked — please allow popups','error'); return; }
-  win.document.write(combined);
+  // Extract the report content from each page (between <div class="report"> and </div>
+
+</body>)
+  const reportBodies = pages.map((p, i) => {
+    // Get everything inside <body>...</body>, skip the .no-print bar
+    const bodyMatch = p.match(/<body>([\s\S]*)<\/body>/);
+    if(!bodyMatch) return '';
+    const bodyHTML = bodyMatch[1];
+    // Remove the .no-print toolbar div
+    const withoutToolbar = bodyHTML.replace(/<div class="no-print">[\s\S]*?<\/div>/,'');
+    // Wrap in page-break div (except first page)
+    return i === 0
+      ? `<div class="page-wrap">${withoutToolbar}</div>`
+      : `<div class="page-wrap" style="page-break-before:always">${withoutToolbar}</div>`;
+  });
+
+  const combinedHTML = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>All Activity PDFs — ${pages.length} Entries</title>
+<style>
+${sharedStyle}
+.page-wrap { padding-top: 0 !important; margin-bottom: 0; }
+.no-print-combined {
+  position:fixed;top:0;left:0;right:0;
+  background:#0B1F4B;color:#fff;padding:10px 20px;
+  display:flex;align-items:center;gap:12px;z-index:999;
+}
+.no-print-combined p{font-size:12px;opacity:.7;margin:0;flex:1}
+@media print { .no-print-combined{display:none!important} body{padding-top:0!important} }
+body { padding-top: 52px; font-family:Arial,sans-serif; }
+@media print { body { padding-top: 0; } }
+</style>
+</head>
+<body>
+<div class="no-print-combined">
+  <p>📄 All ${pages.length} Activity PDFs — Press Ctrl+P → Save as PDF to get all pages in one file</p>
+  <button onclick="window.close()" style="background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.3);padding:6px 14px;border-radius:7px;font-size:12px;cursor:pointer">✕ Close</button>
+  <button onclick="window.print()" style="background:#16A34A;color:#fff;border:none;padding:9px 22px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer">🖨️ Print All / Save PDF</button>
+</div>
+${reportBodies.join('
+')}
+</body>
+</html>`;
+
+  const win = window.open('','_blank','width=960,height=800');
+  if(!win){ showToast('❌ Popup blocked — please allow popups for this site','error'); return; }
+  win.document.open();
+  win.document.write(combinedHTML);
   win.document.close();
 }
 
