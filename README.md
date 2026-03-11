@@ -362,13 +362,13 @@ Your Firebase project is already configured in the app. For reference:
 ```javascript
 // Firebase Configuration (already in index.html)
 const firebaseConfig = {
-  apiKey: "AIzaSyCdlvqiZ60z3BZ8osjlmN-J3shMWl7Z6cM",
-  authDomain: "aai-drcvk-interactive-webapp.firebaseapp.com",
-  databaseURL: "https://aai-drcvk-interactive-webapp-default-rtdb.asia-southeast1.firebasedatabase.app",
-  projectId: "aai-drcvk-interactive-webapp",
-  storageBucket: "aai-drcvk-interactive-webapp.firebasestorage.app",
-  messagingSenderId: "1008860491414",
-  appId: "1:1008860491414:web:fbfa1dbede3b7f6501dcb7"
+  apiKey: "XXXXXXXX",
+  authDomain: "XXXXXXXX",
+  databaseURL: "XXXXXXXX",
+  projectId: "XXXXXXXX",
+  storageBucket: "XXXXXXXX",
+  messagingSenderId:"XXXXXXXX",
+  appId: "XXXXXXXX",
 };
 ```
 
