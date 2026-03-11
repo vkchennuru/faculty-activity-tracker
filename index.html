@@ -2318,60 +2318,17 @@ function openAllEntryPDFs(){
   const pages = window.__entryPages__;
   if(!pages||!pages.length){ showToast('❌ No pages to print','error'); return; }
 
-  // Extract just the <style> from the first page (shared styles)
-  const styleMatch = pages[0].match(/<style>([\s\S]*?)<\/style>/);
-  const sharedStyle = styleMatch ? styleMatch[1] : '';
+  // Merge all pages into one document with page breaks
+  const combined = pages[0].replace('</body></html>',
+    pages.slice(1).map(p=>{
+      const body = p.match(/<div class="report">([\s\S]*)<\/body>/)?.[1] || '';
+      return `<div style="page-break-before:always">${body}</div>`;
+    }).join('') + '</body></html>'
+  );
 
-  // Extract the report content from each page (between <div class="report"> and </div>
-
-</body>)
-  const reportBodies = pages.map((p, i) => {
-    // Get everything inside <body>...</body>, skip the .no-print bar
-    const bodyMatch = p.match(/<body>([\s\S]*)<\/body>/);
-    if(!bodyMatch) return '';
-    const bodyHTML = bodyMatch[1];
-    // Remove the .no-print toolbar div
-    const withoutToolbar = bodyHTML.replace(/<div class="no-print">[\s\S]*?<\/div>/,'');
-    // Wrap in page-break div (except first page)
-    return i === 0
-      ? `<div class="page-wrap">${withoutToolbar}</div>`
-      : `<div class="page-wrap" style="page-break-before:always">${withoutToolbar}</div>`;
-  });
-
-  const combinedHTML = `<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<title>All Activity PDFs — ${pages.length} Entries</title>
-<style>
-${sharedStyle}
-.page-wrap { padding-top: 0 !important; margin-bottom: 0; }
-.no-print-combined {
-  position:fixed;top:0;left:0;right:0;
-  background:#0B1F4B;color:#fff;padding:10px 20px;
-  display:flex;align-items:center;gap:12px;z-index:999;
-}
-.no-print-combined p{font-size:12px;opacity:.7;margin:0;flex:1}
-@media print { .no-print-combined{display:none!important} body{padding-top:0!important} }
-body { padding-top: 52px; font-family:Arial,sans-serif; }
-@media print { body { padding-top: 0; } }
-</style>
-</head>
-<body>
-<div class="no-print-combined">
-  <p>📄 All ${pages.length} Activity PDFs — Press Ctrl+P → Save as PDF to get all pages in one file</p>
-  <button onclick="window.close()" style="background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.3);padding:6px 14px;border-radius:7px;font-size:12px;cursor:pointer">✕ Close</button>
-  <button onclick="window.print()" style="background:#16A34A;color:#fff;border:none;padding:9px 22px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer">🖨️ Print All / Save PDF</button>
-</div>
-${reportBodies.join('
-')}
-</body>
-</html>`;
-
-  const win = window.open('','_blank','width=960,height=800');
-  if(!win){ showToast('❌ Popup blocked — please allow popups for this site','error'); return; }
-  win.document.open();
-  win.document.write(combinedHTML);
+  const win = window.open('','_blank','width=900,height=700');
+  if(!win){ showToast('❌ Popup blocked — please allow popups','error'); return; }
+  win.document.write(combined);
   win.document.close();
 }
 
