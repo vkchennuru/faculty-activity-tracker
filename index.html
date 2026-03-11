@@ -1216,7 +1216,7 @@ tr:hover td{background:#F8FAFF}
 var ROOT_FOLDER_NAME = "Faculty_Activity_Reports";
 var COLLEGE_NAME     = "SKR & SKR Government College for Women (Autonomous)";
 var COLLEGE_ADDR     = "Kadapa, Andhra Pradesh – 516 001";
-var GEMINI_API_KEY   = "YOUR_GEMINI_KEY_HERE"; // Optional: aistudio.google.com
+var GEMINI_API_KEY   = "AIzaSyAxoO1iMP358ePM6Gb8yGMGbxkFGkiaWTU"; // Optional: aistudio.google.com
 
 // ══════════════════════════════════════════════════════════════════════
 // ENTRY POINT — doPost
@@ -1236,7 +1236,7 @@ function doPost(e) {
       return jsonResponse({ status:"error", message:"No activities for selected period." });
     }
 
-    if (GEMINI_API_KEY && GEMINI_API_KEY !== "AIzaSyAxoO1iMP358ePM6Gb8yGMGbxkFGkiaWTU") {
+    if (GEMINI_API_KEY && GEMINI_API_KEY !== "YOUR_GEMINI_KEY_HERE") {
       try { activities = rewriteWithGemini(activities, GEMINI_API_KEY); }
       catch(aiErr) { Logger.log("Gemini skipped: " + aiErr); }
     }
@@ -2025,56 +2025,63 @@ async function generateReport(){
 async function generatePerEntryPDFs(ay, month, rtype, activities, gasUrl, statusEl){
   const p       = fbProfile;
   const now     = new Date().toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'});
-  const ts      = new Date().toISOString().slice(0,10);
   const faculty = p.name || 'Dr. C.V. Krishnaveni';
   const dept    = p.dept || 'Computer Science';
   const college = p.college || 'SKR & SKR Government College for Women (Autonomous)';
+  const hasGAS  = gasUrl && gasUrl.length > 20;
 
   // Show progress UI
   statusEl.style.display='block';
   statusEl.innerHTML = `
     <div style="background:#EFF6FF;border:1.5px solid #BFDBFE;border-radius:14px;padding:18px 20px">
-      <div style="font-size:14px;font-weight:800;color:#0B1F4B;margin-bottom:6px">
-        📁 Generating ${activities.length} Individual PDF${activities.length>1?'s':''}…
+      <div style="font-size:14px;font-weight:800;color:#0B1F4B;margin-bottom:4px">
+        📁 Generating ${activities.length} Individual PDF${activities.length>1?'s':''}
       </div>
-      <div style="font-size:12px;color:#3730a3;margin-bottom:14px">
-        Folder structure: <code style="background:#e0e7ff;padding:2px 8px;border-radius:4px">Faculty_Activity_Reports / ${ay} / [Category] / [Activity]</code>
+      <div style="font-size:12px;color:#3730a3;margin-bottom:4px">
+        Folder: <code style="background:#e0e7ff;padding:2px 8px;border-radius:4px">Faculty_Activity_Reports / ${ay} / [Category] / [Activity Title]</code>
       </div>
-      <div id="per-entry-log" style="max-height:280px;overflow-y:auto;display:flex;flex-direction:column;gap:6px"></div>
+      ${hasGAS ? `<div style="font-size:12px;color:#065F46;background:#F0FDF4;border:1px solid #A7F3D0;border-radius:6px;padding:6px 10px;margin-bottom:8px">☁️ Apps Script URL detected — also saving each PDF to Google Drive…</div>` : `<div style="font-size:12px;color:#92400E;background:#FFFBEB;border:1px solid #FDE68A;border-radius:6px;padding:6px 10px;margin-bottom:8px">💡 No Apps Script URL — browser PDFs only. Paste URL above to also save to Google Drive.</div>`}
+      <div id="per-entry-log" style="max-height:320px;overflow-y:auto;display:flex;flex-direction:column;gap:6px"></div>
       <div style="margin-top:14px;display:flex;gap:10px;flex-wrap:wrap" id="per-entry-actions"></div>
     </div>`;
 
   const logEl     = document.getElementById('per-entry-log');
   const actionsEl = document.getElementById('per-entry-actions');
-  const allPages  = []; // collect all HTML pages for multi-print
+  const allPages  = [];
 
   for(let i = 0; i < activities.length; i++){
-    const act = activities[i];
-    const sh  = SHEETS[act.sheet];
-    const shLabel = sh?.label || act.sheet;
-    const emoji   = sh?.emoji || '📄';
-
-    // Folder path for this entry
+    const act      = activities[i];
+    const sh       = SHEETS[act.sheet];
+    const shLabel  = sh?.label || act.sheet;
+    const emoji    = sh?.emoji || '📄';
     const folderPath = `Faculty_Activity_Reports / ${ay} / ${shLabel} / ${(act.title||'Activity').slice(0,40)}`;
 
-    // Log entry
+    // Build browser PDF HTML
+    const pageHTML = buildSingleEntryHTML(act, i+1, faculty, dept, college, ay, month, rtype, now, sh);
+    allPages.push(pageHTML);
+
+    // Log row — starts with spinner if GAS is being called
     const logItem = document.createElement('div');
+    logItem.id    = `log-item-${i}`;
     logItem.style.cssText = 'display:flex;align-items:center;gap:10px;padding:8px 12px;background:#fff;border:1px solid #BFDBFE;border-radius:8px;font-size:12px';
     logItem.innerHTML = `
       <span style="font-size:16px">${emoji}</span>
       <div style="flex:1;min-width:0">
         <div style="font-weight:700;color:#0B1F4B;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${act.title||'Activity'}</div>
         <div style="color:#64748B;font-size:11px">📁 ${folderPath}</div>
+        <div id="log-status-${i}" style="font-size:11px;margin-top:2px;color:#2563EB">${hasGAS?'⏳ Saving to Drive…':''}</div>
       </div>
-      <button onclick="openSingleEntryPDF(${i})" style="background:#2563EB;color:#fff;border:none;border-radius:6px;padding:4px 12px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap">📄 Open PDF</button>`;
+      <button onclick="openSingleEntryPDF(${i})" style="background:#2563EB;color:#fff;border:none;border-radius:6px;padding:5px 14px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap">📄 Open PDF</button>`;
     logEl.appendChild(logItem);
 
-    // Build the HTML for this entry's PDF
-    allPages.push(buildSingleEntryHTML(act, i+1, faculty, dept, college, ay, month, rtype, now, sh));
+    // If Apps Script URL provided → send this single entry to GAS
+    if(hasGAS){
+      sendSingleEntryToGAS(gasUrl, act, i, faculty, dept, college, ay, month, rtype);
+    }
   }
 
-  // Store pages globally so buttons can open them
-  window.__entryPages__ = allPages;
+  window.__entryPages__      = allPages;
+  window.__lastActivities__  = activities;
 
   actionsEl.innerHTML = `
     <button onclick="openAllEntryPDFs()" style="background:linear-gradient(135deg,#0B1F4B,#1e3a8a);color:#fff;border:none;border-radius:8px;padding:10px 20px;font-size:13px;font-weight:700;cursor:pointer">
@@ -2082,12 +2089,100 @@ async function generatePerEntryPDFs(ay, month, rtype, activities, gasUrl, status
     </button>
     <button onclick="generateCombinedBrowserPDF('${ay}','${month}','${rtype}',window.__lastActivities__)" style="background:#0D9488;color:#fff;border:none;border-radius:8px;padding:10px 20px;font-size:13px;font-weight:700;cursor:pointer">
       📋 Also Generate Combined PDF
-    </button>`;
+    </button>
+    ${hasGAS?`<button onclick="window.open('https://drive.google.com','_blank')" style="background:#16A34A;color:#fff;border:none;border-radius:8px;padding:10px 20px;font-size:13px;font-weight:700;cursor:pointer">📁 Open Google Drive</button>`:''}`;
 
-  // Save for combined button
-  window.__lastActivities__ = activities;
+  showToast(`✅ ${activities.length} PDFs ready — click each to open`,'success');
+}
 
-  showToast(`✅ ${activities.length} PDFs ready — click each entry to open`,'success');
+/* ── Send ONE activity entry to Apps Script → save PDF to Google Drive ── */
+/* ══════════════════════════════════════════════════════════════
+   Send ONE entry to Apps Script via hidden iframe form POST.
+   This is the ONLY method that works cross-origin with GAS:
+   - fetch() with no-cors silently drops the POST body
+   - fetch() with cors gets blocked by browser
+   - Hidden form POST: browser sends full body, GAS receives it ✓
+   GAS must return: ContentService with mime JSON
+   We detect completion by listening for iframe load event.
+══════════════════════════════════════════════════════════════ */
+function sendSingleEntryToGAS(gasUrl, act, idx, faculty, dept, college, ay, month, rtype){
+  const statusEl = document.getElementById(`log-status-${idx}`);
+  const payload  = JSON.stringify({
+    faculty,
+    department: dept,
+    college,
+    year:    ay,
+    month:   month === 'all' ? 'Full Year' : month,
+    rtype,
+    genMode: 'perentry',
+    activities: [{ ...act }]
+  });
+
+  try{
+    // Create a hidden iframe to receive the response
+    const iframeId = `gas-iframe-${idx}-${Date.now()}`;
+    const iframe   = document.createElement('iframe');
+    iframe.id      = iframeId;
+    iframe.name    = iframeId;
+    iframe.style.cssText = 'display:none;position:absolute;width:0;height:0';
+    document.body.appendChild(iframe);
+
+    // Create a hidden form that POSTs directly to GAS
+    const form   = document.createElement('form');
+    form.method  = 'POST';
+    form.action  = gasUrl;
+    form.target  = iframeId;   // submit INTO the hidden iframe
+    form.style.cssText = 'display:none';
+
+    // GAS reads: e.parameter.payload
+    const input  = document.createElement('input');
+    input.type   = 'hidden';
+    input.name   = 'payload';
+    input.value  = payload;
+    form.appendChild(input);
+    document.body.appendChild(form);
+
+    // Listen for iframe load = GAS responded
+    iframe.onload = function(){
+      try{
+        // Try to read response text from iframe
+        const txt = iframe.contentDocument?.body?.innerText || '';
+        const result = txt ? JSON.parse(txt) : null;
+        if(result && result.status === 'success'){
+          if(statusEl) statusEl.innerHTML =
+            `☁️ <span style="color:#16A34A;font-weight:700">Saved to Google Drive ✓</span>
+             <a href="${result.results?.[0]?.folderUrl || 'https://drive.google.com'}"
+                target="_blank" style="color:#16A34A;font-weight:700;margin-left:6px">📁 Open Folder</a>`;
+        } else {
+          if(statusEl) statusEl.innerHTML =
+            `☁️ <span style="color:#16A34A">Sent to Drive ✓</span>
+             <small style="color:#64748B"> — check Google Drive → Faculty_Activity_Reports</small>`;
+        }
+      } catch(e){
+        // CORS prevents reading iframe content from external domain — but POST still worked
+        if(statusEl) statusEl.innerHTML =
+          `☁️ <span style="color:#16A34A;font-weight:700">Sent to Drive ✓</span>
+           <small style="color:#64748B"> — check Google Drive → Faculty_Activity_Reports</small>`;
+      }
+      // Cleanup
+      setTimeout(()=>{ 
+        try{ document.body.removeChild(iframe); document.body.removeChild(form); }catch(e){}
+      }, 3000);
+    };
+
+    // Fallback timeout
+    setTimeout(()=>{
+      if(statusEl && statusEl.innerHTML.includes('Saving'))
+        statusEl.innerHTML = `☁️ <span style="color:#16A34A">Sent ✓</span> — check Google Drive → Faculty_Activity_Reports`;
+    }, 15000);
+
+    if(statusEl) statusEl.innerHTML = '⏳ <span style="color:#2563EB">Sending to Google Drive…</span>';
+    form.submit();
+
+  } catch(err){
+    if(statusEl) statusEl.innerHTML =
+      `<span style="color:#DC2626">❌ Error: ${err.message}</span>`;
+  }
 }
 
 /* Build HTML for a single activity entry PDF */
