@@ -861,7 +861,7 @@ tr:hover td{background:#F8FAFF}
       <div class="sec-hd"><div class="sec-ttl"><span>📬</span> Contact &amp; Profiles</div></div>
       <div class="contact-grid">
         <div class="contact-card"><div class="contact-ico">🏛️</div><div class="contact-lbl">Institution</div><div class="contact-val" style="font-size:13px;color:#2d3561">SKR &amp; SKR GCW(A)<br/>Kadapa, Andhra Pradesh</div></div>
-        <a class="contact-card" href="/cdn-cgi/l/email-protection#10667b7378757e7e65626550777d71797c3e737f7d"><div class="contact-ico">📧</div><div class="contact-lbl">Email</div><div class="contact-val" style="font-size:12px"><span class="__cf_email__" data-cfemail="c2b4a9a1aaa7acacb7b0b782a5afa3abaeeca1adaf">[email&#160;protected]</span></div></a>
+        <a class="contact-card" href="/cdn-cgi/l/email-protection#d9afb2bab1bcb7b7acabac99beb4b8b0b5f7bab6b4"><div class="contact-ico">📧</div><div class="contact-lbl">Email</div><div class="contact-val" style="font-size:12px"><span class="__cf_email__" data-cfemail="720419111a171c1c07000732151f131b1e5c111d1f">[email&#160;protected]</span></div></a>
         <a class="contact-card" href="https://github.com/vkchennuru" target="_blank"><div class="contact-ico">💻</div><div class="contact-lbl">GitHub</div><div class="contact-val">github.com/vkchennuru</div></a>
         <a class="contact-card" href="https://orcid.org/0000-0003-2209-483X" target="_blank"><div class="contact-ico">🆔</div><div class="contact-lbl">ORCID</div><div class="contact-val" style="font-size:12px">0000-0003-2209-483X</div></a>
         <a class="contact-card" href="https://vidwan.inflibnet.ac.in/profile/76511" target="_blank"><div class="contact-ico">🔬</div><div class="contact-lbl">Vidwan Profile</div><div class="contact-val">View Profile →</div></a>
@@ -1017,7 +1017,7 @@ tr:hover td{background:#F8FAFF}
 
       <!-- AY Manager -->
       <div class="ay-manager">
-        <div class="ay-manager-title">📅 Academic Years — Add or Remove <span id="cur-ay-display" style="font-family:JetBrains Mono,monospace;font-size:11px;color:var(--teal);background:#e0f5f9;border:1px solid #cbeef5;padding:3px 10px;border-radius:6px;margin-left:8px;font-weight:700"></span></div>
+        <div class="ay-manager-title">📅 Academic Years — Add or Remove <span id="cur-ay-badge" style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--teal);background:#e0f5f9;border:1px solid #cbeef5;padding:3px 10px;border-radius:6px;margin-left:8px;font-weight:700"></span></div>
         <div class="ay-tags" id="ay-tags-list"></div>
         <div class="ay-add-form">
           <input type="text" id="ay-new-input" placeholder="e.g. 2025-26" maxlength="12" onkeydown="if(event.key==='Enter')addAY()"/>
@@ -1122,12 +1122,12 @@ tr:hover td{background:#F8FAFF}
           </div>
           <div class="form-group">
             <label>Report Month</label>
-            <select id="report-month" id="report-month">
+            <select id="report-month">
               <option value="all">All Months (Full Year)</option>
-              <option id="opt-June">June</option><option id="opt-July">July</option><option id="opt-August">August</option>
-              <option id="opt-September">September</option><option id="opt-October">October</option><option id="opt-November">November</option>
-              <option id="opt-December">December</option><option id="opt-January">January</option><option id="opt-February">February</option>
-              <option id="opt-March">March</option><option id="opt-April">April</option><option id="opt-May">May</option>
+              <option>June</option><option>July</option><option>August</option>
+              <option>September</option><option>October</option><option>November</option>
+              <option>December</option><option>January</option><option>February</option>
+              <option>March</option><option>April</option><option>May</option>
             </select>
           </div>
           <div class="form-group">
@@ -1258,9 +1258,9 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database(), ROOT = 'faculty_tracker';
 
-/* ════════════════════════════════════════════════
-   HARDCODED WEB APP URL — update this if you redeploy
-════════════════════════════════════════════════ */
+/* ════ HARDCODED WEB APP URL ════
+   Update this line if you redeploy your Apps Script Web App.
+   Users never need to paste it manually — it's always pre-filled. */
 const WEBAPP_URL = "https://script.google.com/macros/s/AKfycbzIgFysXQrA-xp7NukcLqI-yUKmTTQrsI5JgpGA_-dzbqmZElTpK_G7mDhlLn3uh7Dj/exec";
 
 /* ════════════════════════════════════════════════
@@ -1272,21 +1272,13 @@ const CERTS   = ["Yes","No","Applied","Not Applicable"];
 const STATUS  = ["Completed","Ongoing","Planned"];
 const MONTHS  = ["June","July","August","September","October","November","December","January","February","March","April","May"];
 
-/* ════════════════════════════════════════════════
-   ACADEMIC YEAR UTILITIES — Auto-detect current AY
-   Indian academic year: June–May
-   So June 2025 → July 2026 is "2025-26"
-════════════════════════════════════════════════ */
+/* ════ AUTO ACADEMIC YEAR DETECTION ════
+   Indian academic year runs June→May.  Returns e.g. "2025-26" */
 function getCurrentAcademicYear() {
-  const now = new Date();
-  const month = now.getMonth(); // 0=Jan … 11=Dec
-  const year  = now.getFullYear();
-  // AY starts in June (month 5); before June → still previous AY
-  const startYear = (month >= 5) ? year : year - 1;
-  const endYear   = startYear + 1;
-  return `${startYear}-${String(endYear).slice(-2)}`;
+  const now = new Date(), m = now.getMonth(), y = now.getFullYear();
+  const start = (m >= 5) ? y : y - 1;           // June = month index 5
+  return `${start}-${String(start+1).slice(-2)}`; // "2025-26"
 }
-// e.g. returns "2025-26" when called in any month of the 2025-26 academic year
 const CC = ['#2563EB','#7C3AED','#0D9488','#DB2777','#EA580C','#16A34A','#D97706','#0891B2','#DC2626','#4F46E5','#9B1C1C','#0B1F4B','#6D28D9','#065F46','#92400E'];
 
 /* ════════════════════════════════════════════════
@@ -1386,17 +1378,15 @@ function initFirebase(){
     populateReportAY();
     if(currentView==='dashboard') renderDashboard();
   });
-  // Web App URL — prefer hardcoded constant, Firebase override as fallback
+  // Web App URL — hardcoded constant wins; Firebase saved value is fallback
   db.ref(`${ROOT}/webapp_url`).on('value', s=>{
-    const saved = s.val()||'';
-    // Hardcoded URL always takes priority; Firebase-saved URL is fallback only
-    fbWebAppUrl = WEBAPP_URL || saved;
+    fbWebAppUrl = WEBAPP_URL || s.val() || '';
     const el = document.getElementById('webapp-url');
     if(el) el.value = fbWebAppUrl;
   });
-  // Pre-fill immediately before Firebase responds
-  const urlEl = document.getElementById('webapp-url');
-  if(urlEl && WEBAPP_URL) urlEl.value = WEBAPP_URL;
+  // Pre-fill immediately (before Firebase responds)
+  const _urlEl = document.getElementById('webapp-url');
+  if(_urlEl) _urlEl.value = WEBAPP_URL;
   // All sheets
   Object.keys(SHEETS).forEach(k=>{
     fbData[k]={};
@@ -1472,30 +1462,26 @@ function renderAYChips(){
   const el = document.getElementById('ay-chips');
   if(!el) return;
   const cur = getCurrentAcademicYear();
-  // Auto-activate current AY on first load if activeAY is still default 'All'
+  // Auto-activate current AY on first load (when still default 'All')
   if(activeAY==='All' && fbAcademicYears.includes(cur)) activeAY = cur;
   let html = `<div class="ay-chip ${activeAY==='All'?'active':''}" onclick="setAY('All')">All Years</div>`;
   fbAcademicYears.forEach(ay=>{
-    const isCur = ay===cur;
-    html+=`<div class="ay-chip ${activeAY===ay?'active':''}" onclick="setAY('${ay}')" title="${isCur?' ✦ Current Academic Year':''}">${ay}${isCur?' <span style=\'font-size:10px;opacity:.7\'>(Current)</span>':''}</div>`;
+    const isCur = ay === cur;
+    html+=`<div class="ay-chip ${activeAY===ay?'active':''}" onclick="setAY('${ay}')"
+      title="${isCur?'Current Academic Year':''}">${ay}${isCur?' <span style="font-size:10px;opacity:.75">(Current)</span>':''}</div>`;
   });
   el.innerHTML = html;
 }
 function setAY(ay){activeAY=ay; renderAYChips(); renderDashboard();}
-function autoSetCurrentAY(){
-  const cur = getCurrentAcademicYear();
-  // If current AY exists in the list, select it; else fall back to All
-  if(fbAcademicYears.includes(cur)) setAY(cur);
-}
+function autoSetCurrentAY(){ const c=getCurrentAcademicYear(); if(fbAcademicYears.includes(c)) setAY(c); }
 function populateReportAY(){
   const sel = document.getElementById('report-ay');
   if(!sel) return;
   const cur = getCurrentAcademicYear();
   sel.innerHTML = '<option value="">— Select Year —</option>';
   fbAcademicYears.forEach(ay=>{
-    const label = ay === cur ? `${ay} (Current)` : ay;
-    const selected = ay === cur ? ' selected' : '';
-    sel.innerHTML+=`<option value="${ay}"${selected}>${label}</option>`;
+    const label = ay===cur ? `${ay} ✦ Current` : ay;
+    sel.innerHTML+=`<option value="${ay}"${ay===cur?' selected':''}>${label}</option>`;
   });
 }
 
@@ -1748,19 +1734,17 @@ function showReportSection(id){
   const target=document.getElementById('report-'+id);
   if(target) target.style.display='block';
   target.scrollIntoView({behavior:'smooth',block:'start'});
-  // Auto-populate current month and AY when opening the generate panel
   if(id==='generate'){
     populateReportAY();
-    // Auto-select current calendar month in the month dropdown
-    const monthNames=['January','February','March','April','May','June','July','August','September','October','November','December'];
-    const curMonthName = monthNames[new Date().getMonth()];
+    // Auto-select current calendar month
+    const monthNames=['January','February','March','April','May','June',
+                      'July','August','September','October','November','December'];
+    const curM = monthNames[new Date().getMonth()];
     const mSel = document.getElementById('report-month');
-    if(mSel){
-      for(let opt of mSel.options){ if(opt.value===curMonthName||opt.text===curMonthName){ opt.selected=true; break; } }
-    }
-    // Pre-fill URL
-    const urlEl = document.getElementById('webapp-url');
-    if(urlEl && !urlEl.value) urlEl.value = WEBAPP_URL;
+    if(mSel) for(const opt of mSel.options){ if(opt.text===curM||opt.value===curM){opt.selected=true;break;} }
+    // Ensure URL is filled
+    const uEl = document.getElementById('webapp-url');
+    if(uEl && !uEl.value) uEl.value = WEBAPP_URL;
   }
 }
 async function saveWebAppUrl(){
@@ -1922,9 +1906,8 @@ async function saveProfile(){
 function updateHdrName(){
   const el=document.getElementById('t-hdr-name');
   if(el&&fbProfile.name) el.textContent='👩‍💻 '+fbProfile.name;
-  // Show current AY badge in AY Manager heading
-  const ayDisp = document.getElementById('cur-ay-display');
-  if(ayDisp) ayDisp.textContent = '✦ ' + getCurrentAcademicYear() + ' (Current)';
+  const badge=document.getElementById('cur-ay-badge');
+  if(badge) badge.textContent='✦ '+getCurrentAcademicYear()+' (Current)';
 }
 
 /* ════════════════════════════════════════════════
@@ -2003,4 +1986,39 @@ window.addEventListener('scroll',()=>{
   });
 });
 
-/* ═════════════════════════════════════
+/* ════════════════════════════════════════════════
+   INIT — called once DOM is ready
+════════════════════════════════════════════════ */
+function init() {
+  // Show landing page immediately while Firebase connects
+  goLanding();
+
+  // Safety net: if Firebase takes >6 s, hide loader anyway so
+  // the page is always accessible (handles CORS / slow networks)
+  var safetyTimer = setTimeout(function() {
+    var loader = document.getElementById('loading');
+    if (loader) loader.classList.add('hide');
+    // If Firebase never connected, still show landing
+    goLanding();
+    console.warn('Firebase connection timeout — showing app without live sync.');
+  }, 6000);
+
+  // Override the hide-loader inside initFirebase to also clear the timer
+  var origSetSync = setSyncState;
+  setSyncState = function(s) {
+    origSetSync(s);
+    if (s === 'live') clearTimeout(safetyTimer);
+  };
+
+  initFirebase();
+}
+
+// Kick everything off when DOM is ready
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', init);
+} else {
+  init();
+}
+</script>
+</body>
+</html>
