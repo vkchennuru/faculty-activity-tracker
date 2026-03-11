@@ -1236,7 +1236,7 @@ function doPost(e) {
       return jsonResponse({ status:"error", message:"No activities for selected period." });
     }
 
-    if (GEMINI_API_KEY && GEMINI_API_KEY !== "YOUR_GEMINI_KEY_HERE") {
+    if (GEMINI_API_KEY && GEMINI_API_KEY !== "AIzaSyAxoO1iMP358ePM6Gb8yGMGbxkFGkiaWTU") {
       try { activities = rewriteWithGemini(activities, GEMINI_API_KEY); }
       catch(aiErr) { Logger.log("Gemini skipped: " + aiErr); }
     }
