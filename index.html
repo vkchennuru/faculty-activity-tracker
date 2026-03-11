@@ -1148,14 +1148,22 @@ tr:hover td{background:#F8FAFF}
             </select>
           </div>
           <div class="form-group">
-            <label>Apps Script Web App URL <small style="color:var(--muted)">(optional — for Google Drive PDF)</small></label>
+            <label>📄 Generation Mode</label>
+            <select id="report-genmode">
+              <option value="perentry">Separate PDF per Activity Entry (one PDF each, own folder)</option>
+              <option value="single">Combined PDF (all entries in one document)</option>
+            </select>
+          </div>
+          <div class="form-group" style="grid-column:1/-1">
+            <label>Apps Script Web App URL <small style="color:var(--muted)">(optional — for auto-save to Google Drive)</small></label>
             <input type="url" id="webapp-url" placeholder="https://script.google.com/macros/s/…/exec — leave blank for browser PDF">
           </div>
         </div>
 
         <div style="background:#F0FDF4;border:1.5px solid #A7F3D0;border-radius:12px;padding:14px 16px;margin-bottom:16px;font-size:13px;color:#065F46">
-          <strong>📄 Browser PDF</strong> (works immediately, no setup): Click <em>Generate Report</em> → A print-ready report opens → Press <kbd>Ctrl+P</kbd> → Save as PDF.<br>
-          <strong>☁️ Google Drive PDF</strong>: Paste your Apps Script Web App URL above → Click Generate → PDF saved to Google Drive → Faculty_Activity_Reports / Year / Month.
+          📁 <strong>Separate PDF per Entry</strong>: Each activity gets its own PDF in its own folder —
+          <code style="background:#dcfce7;padding:1px 6px;border-radius:4px">Faculty_Activity_Reports / AY / Category / Activity Title</code><br>
+          📋 <strong>Combined PDF</strong>: All entries in one single document.
         </div>
 
         <div class="form-actions">
@@ -1952,7 +1960,9 @@ async function saveWebAppUrl(){
   }catch(e){showToast('❌ Save failed','error')}
 }
 
-/* ── Collect & filter activities for report ── */
+/* ════════════════════════════════════════════════
+   COLLECT ACTIVITIES
+════════════════════════════════════════════════ */
 function collectReportActivities(ay, month){
   return getAllRecords().filter(r=>{
     if(r._ay !== ay) return false;
@@ -1977,15 +1987,18 @@ function collectReportActivities(ay, month){
   }));
 }
 
-/* ── GENERATE via Google Apps Script → Google Drive PDF ── */
+/* ════════════════════════════════════════════════
+   MAIN GENERATE — triggers correct mode
+════════════════════════════════════════════════ */
 async function generateReport(){
-  const url   = document.getElementById('webapp-url').value.trim();
-  const ay    = document.getElementById('report-ay').value;
-  const month = document.getElementById('report-month').value;
-  const rtype = document.getElementById('report-type').value;
+  const url      = document.getElementById('webapp-url').value.trim();
+  const ay       = document.getElementById('report-ay').value;
+  const month    = document.getElementById('report-month').value;
+  const rtype    = document.getElementById('report-type').value;
+  const genMode  = document.getElementById('report-genmode').value;
   const statusEl = document.getElementById('report-status');
 
-  if(!ay){showToast('⚠️ Select an Academic Year','error');return;}
+  if(!ay){ showToast('⚠️ Select an Academic Year','error'); return; }
 
   const activities = collectReportActivities(ay, month);
   if(!activities.length){
@@ -1993,80 +2006,241 @@ async function generateReport(){
     return;
   }
 
-  /* ── Option A: Browser-native PDF (always works, no setup needed) ── */
-  if(!url || url.length < 20){
-    showToast('💡 No Apps Script URL set — opening browser PDF instead','info');
-    generateBrowserPDF(ay, month, rtype, activities);
-    return;
-  }
-
-  /* ── Option B: Google Apps Script → Google Drive PDF ── */
-  statusEl.style.display='block';
-  statusEl.innerHTML=`<div style="background:#EFF6FF;border:1.5px solid #BFDBFE;border-radius:12px;padding:16px;font-size:13px;color:#1E40AF;display:flex;align-items:center;gap:10px">
-    <div style="animation:spin 1s linear infinite;font-size:20px">⏳</div>
-    <div><strong>Sending to Apps Script…</strong><br>Building PDF → Saving to Google Drive → Faculty_Activity_Reports / ${ay} / ${month==='all'?'Full_Year':month}</div>
-  </div>`;
-
-  const payload = {
-    faculty:    fbProfile.name    || 'Dr. C.V. Krishnaveni',
-    department: fbProfile.dept    || 'Computer Science',
-    college:    fbProfile.college || 'SKR & SKR Government College for Women (Autonomous)',
-    year:       ay,
-    month:      month==='all' ? 'Full Year' : month,
-    rtype:      rtype,
-    activities
-  };
-
-  try{
-    /* Use a JSONP-style approach: send via fetch with cors proxy pattern.
-       Apps Script must be deployed with "Anyone" access.
-       We append a callback param so we can read the result. */
-    const proxyUrl = url +
-      (url.includes('?') ? '&' : '?') +
-      'callback=__gasCallback__&data=' + encodeURIComponent(JSON.stringify(payload));
-
-    const result = await new Promise((resolve, reject)=>{
-      const script = document.createElement('script');
-      window.__gasCallback__ = (data)=>{ delete window.__gasCallback__; resolve(data); };
-      script.src = proxyUrl;
-      script.onerror = ()=>reject(new Error('Script load failed'));
-      setTimeout(()=>reject(new Error('Timeout — Apps Script took too long (>30s)')), 30000);
-      document.head.appendChild(script);
-      setTimeout(()=>{ try{ document.head.removeChild(script); }catch(e){} }, 35000);
-    });
-
-    if(result && result.status === 'success'){
-      statusEl.innerHTML=`<div style="background:#F0FDF4;border:1.5px solid #A7F3D0;border-radius:12px;padding:16px;font-size:13px;color:#065F46">
-        <strong>✅ PDF generated and saved to Google Drive!</strong><br>
-        📁 <a href="${result.folderUrl||'https://drive.google.com'}" target="_blank" style="color:#16a34a;font-weight:700">Open Folder in Drive</a>
-        &nbsp;·&nbsp;
-        📄 <a href="${result.pdfUrl||'#'}" target="_blank" style="color:#16a34a;font-weight:700">Open PDF directly</a><br>
-        <small style="color:#4ade80">File: ${result.fileName||''} · Activities: ${result.activities||activities.length}</small>
-      </div>`;
-      showToast('✅ PDF saved to Google Drive!','success');
-    } else {
-      throw new Error((result && result.message) || 'Apps Script returned an error');
-    }
-
-  } catch(err){
-    // Fallback to browser PDF on any failure
-    statusEl.innerHTML=`<div style="background:#FFFBEB;border:1.5px solid #FDE68A;border-radius:12px;padding:16px;font-size:13px;color:#92400E">
-      <strong>⚠️ Could not reach Apps Script.</strong><br>
-      Opening <strong>browser PDF</strong> instead — you can still save a PDF from your browser's Print dialog.<br><br>
-      <em>To fix Apps Script:</em> Make sure it is deployed as a Web App with "Anyone" access and supports JSONP (callback parameter).<br>
-      <strong>Error:</strong> ${err.message}
-    </div>`;
-    setTimeout(()=> generateBrowserPDF(ay, month, rtype, activities), 500);
+  if(genMode === 'single'){
+    /* ── Single combined PDF (browser) ── */
+    generateCombinedBrowserPDF(ay, month, rtype, activities);
+  } else {
+    /* ── Separate PDF per entry (browser) ── */
+    generatePerEntryPDFs(ay, month, rtype, activities, url, statusEl);
   }
 }
 
 /* ════════════════════════════════════════════════
-   BROWSER-NATIVE PDF GENERATOR
-   Opens a print-ready report in a new window.
-   User clicks Ctrl+P / Cmd+P → Save as PDF.
-   Works 100% offline, no Apps Script needed.
+   MODE A — ONE PDF PER ENTRY
+   Folder structure shown in status panel:
+   Faculty_Activity_Reports / AY / SheetName / Entry Title
+   Opens each as a separate browser print window.
+   Apps Script version saves each to its own Drive folder.
 ════════════════════════════════════════════════ */
-function generateBrowserPDF(ay, month, rtype, activities){
+async function generatePerEntryPDFs(ay, month, rtype, activities, gasUrl, statusEl){
+  const p       = fbProfile;
+  const now     = new Date().toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'});
+  const ts      = new Date().toISOString().slice(0,10);
+  const faculty = p.name || 'Dr. C.V. Krishnaveni';
+  const dept    = p.dept || 'Computer Science';
+  const college = p.college || 'SKR & SKR Government College for Women (Autonomous)';
+
+  // Show progress UI
+  statusEl.style.display='block';
+  statusEl.innerHTML = `
+    <div style="background:#EFF6FF;border:1.5px solid #BFDBFE;border-radius:14px;padding:18px 20px">
+      <div style="font-size:14px;font-weight:800;color:#0B1F4B;margin-bottom:6px">
+        📁 Generating ${activities.length} Individual PDF${activities.length>1?'s':''}…
+      </div>
+      <div style="font-size:12px;color:#3730a3;margin-bottom:14px">
+        Folder structure: <code style="background:#e0e7ff;padding:2px 8px;border-radius:4px">Faculty_Activity_Reports / ${ay} / [Category] / [Activity]</code>
+      </div>
+      <div id="per-entry-log" style="max-height:280px;overflow-y:auto;display:flex;flex-direction:column;gap:6px"></div>
+      <div style="margin-top:14px;display:flex;gap:10px;flex-wrap:wrap" id="per-entry-actions"></div>
+    </div>`;
+
+  const logEl     = document.getElementById('per-entry-log');
+  const actionsEl = document.getElementById('per-entry-actions');
+  const allPages  = []; // collect all HTML pages for multi-print
+
+  for(let i = 0; i < activities.length; i++){
+    const act = activities[i];
+    const sh  = SHEETS[act.sheet];
+    const shLabel = sh?.label || act.sheet;
+    const emoji   = sh?.emoji || '📄';
+
+    // Folder path for this entry
+    const folderPath = `Faculty_Activity_Reports / ${ay} / ${shLabel} / ${(act.title||'Activity').slice(0,40)}`;
+
+    // Log entry
+    const logItem = document.createElement('div');
+    logItem.style.cssText = 'display:flex;align-items:center;gap:10px;padding:8px 12px;background:#fff;border:1px solid #BFDBFE;border-radius:8px;font-size:12px';
+    logItem.innerHTML = `
+      <span style="font-size:16px">${emoji}</span>
+      <div style="flex:1;min-width:0">
+        <div style="font-weight:700;color:#0B1F4B;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${act.title||'Activity'}</div>
+        <div style="color:#64748B;font-size:11px">📁 ${folderPath}</div>
+      </div>
+      <button onclick="openSingleEntryPDF(${i})" style="background:#2563EB;color:#fff;border:none;border-radius:6px;padding:4px 12px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap">📄 Open PDF</button>`;
+    logEl.appendChild(logItem);
+
+    // Build the HTML for this entry's PDF
+    allPages.push(buildSingleEntryHTML(act, i+1, faculty, dept, college, ay, month, rtype, now, sh));
+  }
+
+  // Store pages globally so buttons can open them
+  window.__entryPages__ = allPages;
+
+  actionsEl.innerHTML = `
+    <button onclick="openAllEntryPDFs()" style="background:linear-gradient(135deg,#0B1F4B,#1e3a8a);color:#fff;border:none;border-radius:8px;padding:10px 20px;font-size:13px;font-weight:700;cursor:pointer">
+      🖨️ Print All ${activities.length} PDFs at Once
+    </button>
+    <button onclick="generateCombinedBrowserPDF('${ay}','${month}','${rtype}',window.__lastActivities__)" style="background:#0D9488;color:#fff;border:none;border-radius:8px;padding:10px 20px;font-size:13px;font-weight:700;cursor:pointer">
+      📋 Also Generate Combined PDF
+    </button>`;
+
+  // Save for combined button
+  window.__lastActivities__ = activities;
+
+  showToast(`✅ ${activities.length} PDFs ready — click each entry to open`,'success');
+}
+
+/* Build HTML for a single activity entry PDF */
+function buildSingleEntryHTML(act, idx, faculty, dept, college, ay, month, rtype, now, sh){
+  const shLabel   = sh?.label  || act.sheet;
+  const emoji     = sh?.emoji  || '📄';
+  const color     = sh?.color  || '#2563EB';
+  const folderPath = `Faculty_Activity_Reports / ${ay} / ${shLabel} / ${(act.title||'Activity').slice(0,50)}`;
+
+  // Collect all fields for this entry
+  const fields = [];
+  if(act.date)         fields.push(['Date',         act.date]);
+  if(act.organizer)    fields.push(['Organizer',     act.organizer]);
+  if(act.mode)         fields.push(['Mode',          act.mode]);
+  if(act.level)        fields.push(['Level',         act.level]);
+  if(act.role)         fields.push(['Role',          act.role]);
+  if(act.participants) fields.push(['Participants',  act.participants]);
+  if(act.cert)         fields.push(['Certificate',   act.cert]);
+  if(act.venue)        fields.push(['Venue / Platform', act.venue]);
+  if(act.remarks)      fields.push(['Remarks',       act.remarks]);
+  if(act.url)          fields.push(['URL / DOI / Link', act.url]);
+
+  const fieldRows = fields.map(([k,v])=>`
+    <tr>
+      <td style="background:#EFF6FF;font-weight:700;color:#0B1F4B;padding:8px 12px;width:35%;border:1px solid #E2E8F0;font-size:10pt">${k}</td>
+      <td style="padding:8px 12px;border:1px solid #E2E8F0;font-size:10pt;color:#0F172A">${v}</td>
+    </tr>`).join('');
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>${shLabel} — ${act.title||'Activity'} — ${ay}</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:Arial,sans-serif;color:#0F172A;background:#fff;font-size:11pt}
+  @page{size:A4;margin:15mm 18mm 15mm 18mm}
+  @media print{.no-print{display:none!important}body{font-size:10pt}}
+  .no-print{position:fixed;top:0;left:0;right:0;background:#0B1F4B;color:#fff;padding:10px 20px;display:flex;align-items:center;gap:12px;z-index:999;box-shadow:0 4px 20px rgba(0,0,0,.3)}
+  .no-print p{font-size:11px;opacity:.7;margin:0;flex:1}
+  .print-btn{background:#16A34A;color:#fff;border:none;padding:8px 20px;border-radius:7px;font-size:13px;font-weight:700;cursor:pointer}
+  .close-btn{background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.3);padding:6px 14px;border-radius:7px;font-size:12px;cursor:pointer}
+  .report{padding-top:52px}
+  @media print{.report{padding-top:0}}
+
+  .top-banner{background:linear-gradient(135deg,#0B1F4B,#1e3a8a);color:#fff;padding:16px 20px;border-radius:4px 4px 0 0;text-align:center}
+  .top-banner h1{font-size:14pt;margin-bottom:3px}
+  .top-banner p{font-size:9pt;color:#BAE6FD;margin:1px 0}
+
+  .category-bar{background:${color};color:#fff;padding:8px 16px;font-size:10pt;font-weight:700;display:flex;align-items:center;gap:8px}
+  .activity-title{font-size:15pt;font-weight:800;color:#0B1F4B;padding:14px 16px 6px;border-bottom:2px solid ${color}}
+  .folder-path{font-size:8.5pt;color:#64748B;padding:6px 16px 10px;background:#F8FAFF;border-bottom:1px solid #E2E8F0;font-family:monospace}
+
+  .meta-table{width:100%;border-collapse:collapse;margin:12px 0}
+  .faculty-box{display:grid;grid-template-columns:1fr 1fr;gap:0;margin-bottom:12px;border:1px solid #E2E8F0}
+  .fbox{padding:7px 12px;font-size:9.5pt;border-right:1px solid #E2E8F0}
+  .fbox:nth-child(even){border-right:none}
+  .fbox strong{color:#0B1F4B;display:block;font-size:8.5pt;margin-bottom:1px}
+
+  .fields-head{font-size:10pt;font-weight:800;color:#0B1F4B;margin:14px 0 6px;padding-left:4px;border-left:3px solid ${color};padding-left:10px}
+  .fields-table{width:100%;border-collapse:collapse}
+
+  .naac-note{border:1px solid #FDE68A;background:#FFFBEB;border-radius:4px;padding:9px 12px;font-size:8.5pt;color:#92400E;margin:12px 0}
+  .rpt-footer{border-top:1px solid #E2E8F0;margin-top:14px;padding-top:8px;font-size:8pt;color:#94A3B8;display:flex;justify-content:space-between}
+  .sig-table{width:100%;margin-top:28px;border-collapse:collapse}
+  .sig-table td{border-top:1px solid #0B1F4B;padding:5px 10px;text-align:center;width:33.3%;font-size:9pt}
+  .sig-label{font-weight:700;color:#0B1F4B}
+</style>
+</head>
+<body>
+<div class="no-print">
+  <p>📄 Individual Activity PDF — ${shLabel} · ${act.title||'Activity'} · Press Ctrl+P → Save as PDF</p>
+  <button class="close-btn" onclick="window.close()">✕</button>
+  <button class="print-btn" onclick="window.print()">🖨️ Print / Save PDF</button>
+</div>
+<div class="report">
+
+<div class="top-banner">
+  <h1>FACULTY ACADEMIC ACTIVITY — INDIVIDUAL RECORD</h1>
+  <p>${college}</p>
+  <p>${dept} · ${ay}</p>
+</div>
+
+<div class="category-bar">${emoji} ${shLabel}</div>
+
+<div class="activity-title">${idx}. ${act.title||'Activity'}</div>
+<div class="folder-path">📁 Saved to: ${folderPath}</div>
+
+<div class="faculty-box" style="margin-top:10px">
+  <div class="fbox"><strong>Faculty Name</strong>${faculty}</div>
+  <div class="fbox"><strong>Academic Year</strong>${ay}</div>
+  <div class="fbox"><strong>Department</strong>${dept}</div>
+  <div class="fbox"><strong>Report Period</strong>${month==='all'?'Full Year':month}</div>
+</div>
+
+<div class="fields-head">Activity Details</div>
+<table class="fields-table">
+  ${fieldRows || '<tr><td colspan="2" style="padding:10px;color:#64748B;font-style:italic">No additional details recorded.</td></tr>'}
+</table>
+
+${rtype==='naac'?`<div class="naac-note">NOTE: This individual activity record is formatted as per NAAC/AQAR criteria. For IQAC use only.</div>`:''}
+
+<div class="rpt-footer">
+  <span>Generated: ${now} | Faculty Activity Tracker v4.0 | Record ${idx} of series</span>
+  <span>© 2025 Dr. C.V. Krishnaveni | SKR &amp; SKR GCW(A), Kadapa</span>
+</div>
+
+<table class="sig-table">
+  <tr>
+    <td><div class="sig-label">Faculty Signature</div><div style="color:#475569;font-size:8.5pt;margin-top:3px">${faculty}</div></td>
+    <td><div class="sig-label">HOD Signature</div></td>
+    <td><div class="sig-label">IQAC Coordinator</div></td>
+  </tr>
+</table>
+
+</div>
+</body>
+</html>`;
+}
+
+/* Open a single entry's PDF in new tab */
+function openSingleEntryPDF(idx){
+  const html = window.__entryPages__[idx];
+  if(!html){ showToast('❌ PDF page not found','error'); return; }
+  const win = window.open('','_blank','width=900,height=700');
+  if(!win){ showToast('❌ Popup blocked — please allow popups','error'); return; }
+  win.document.write(html);
+  win.document.close();
+}
+
+/* Open ALL entry PDFs in one multi-page window */
+function openAllEntryPDFs(){
+  const pages = window.__entryPages__;
+  if(!pages||!pages.length){ showToast('❌ No pages to print','error'); return; }
+
+  // Merge all pages into one document with page breaks
+  const combined = pages[0].replace('</body></html>',
+    pages.slice(1).map(p=>{
+      const body = p.match(/<div class="report">([\s\S]*)<\/body>/)?.[1] || '';
+      return `<div style="page-break-before:always">${body}</div>`;
+    }).join('') + '</body></html>'
+  );
+
+  const win = window.open('','_blank','width=900,height=700');
+  if(!win){ showToast('❌ Popup blocked — please allow popups','error'); return; }
+  win.document.write(combined);
+  win.document.close();
+}
+
+/* ════════════════════════════════════════════════
+   MODE B — COMBINED PDF (one document, all entries)
+════════════════════════════════════════════════ */
+function generateCombinedBrowserPDF(ay, month, rtype, activities){
   const p  = fbProfile;
   const now = new Date().toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'});
   const periodLabel = month==='all' ? 'Full Academic Year' : month;
@@ -2084,11 +2258,12 @@ function generateBrowserPDF(ay, month, rtype, activities){
   });
   summaryRows += `<tr style="background:#0B1F4B;color:#fff"><td><strong>GRAND TOTAL</strong></td><td style="text-align:center;font-weight:700">${grandTotal}</td></tr>`;
 
-  // Detailed section (for detailed / naac)
+  // Detailed section
   let detailSection = '';
   if(rtype !== 'summary'){
     Object.entries(bySheet).forEach(([sid, acts])=>{
-      detailSection += `<div class="section-head">${SHEETS[sid]?.emoji||''} ${SHEETS[sid]?.label||sid}</div>`;
+      const sh = SHEETS[sid];
+      detailSection += `<div class="section-head">${sh?.emoji||''} ${sh?.label||sid}</div>`;
       acts.forEach((act,i)=>{
         const details = [
           act.date && `<strong>Date:</strong> ${act.date}`,
