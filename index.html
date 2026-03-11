@@ -1821,28 +1821,24 @@ async function generateReport(){
   };
 
   try{
-    const resp = await fetch(url, {
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body: JSON.stringify(payload),
-      mode:'cors'
-    });
-    const data = await resp.json();
-    if(data.status==='success'){
-      statusEl.innerHTML=`<div style="background:#F0FDF4;border:1.5px solid #A7F3D0;border-radius:12px;padding:16px;font-size:13px;color:#065F46">
-        <div style="font-size:18px;margin-bottom:8px">✅ Report Generated Successfully!</div>
-        <div><strong>PDF saved to:</strong> Google Drive → Faculty_Activity_Reports → ${ay} → ${month==='all'?'Full Year':month}</div>
-        <div style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap">
-          <a href="${data.driveUrl||'https://drive.google.com'}" target="_blank" class="btn btn-success" style="text-decoration:none">📁 Open in Google Drive</a>
-          ${data.pdfUrl?`<a href="${data.pdfUrl}" target="_blank" class="btn btn-primary" style="text-decoration:none">📄 Download PDF</a>`:''}
-        </div>
-      </div>`;
-      showToast('✅ Report ready in Google Drive!','success');
-    } else {
-      statusEl.innerHTML=`<div style="background:#FEF2F2;border:1.5px solid #FECACA;border-radius:12px;padding:16px;font-size:13px;color:#991B1B">❌ Error: ${data.message||'Unknown error'}</div>`;
-      showToast('❌ Report generation failed','error');
-    }
-  }catch(err){
+    await fetch(url,{
+  method:'POST',
+  mode:'no-cors',
+  headers:{
+    'Content-Type':'application/json'
+  },
+  body: JSON.stringify(payload)
+});
+
+// Since no-cors blocks reading response,
+// just show success message
+statusEl.innerHTML=`<div style="background:#F0FDF4;border:1.5px solid #A7F3D0;border-radius:12px;padding:16px;font-size:13px;color:#065F46">
+<strong>✅ Report request sent!</strong><br>
+Apps Script is generating the PDF.  
+Check your Google Drive → <b>Faculty_Activity_Reports</b> folder in a few seconds.
+</div>`;
+    
+    }catch(err){
     statusEl.innerHTML=`<div style="background:#FEF2F2;border:1.5px solid #FECACA;border-radius:12px;padding:16px;font-size:13px;color:#991B1B">
       ❌ Could not reach your Apps Script. Check:<br/>
       • Web App URL is correct<br/>
